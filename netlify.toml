@@ -19,10 +19,6 @@
 # Next.js plugin for optimal performance
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-  
-  [plugins.inputs]
-    # Enable ISR (Incremental Static Regeneration)
-    experimental_revalidation = true
 
 # Function configuration for API routes
 [functions]
