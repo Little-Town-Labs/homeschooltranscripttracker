@@ -139,65 +139,18 @@
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
 
-# Redirects for API routes
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/___netlify-handler/:splat"
-  status = 200
-  conditions = {Role = ["admin", "user"]}
-
-# NextAuth.js callback redirects
-[[redirects]]
-  from = "/api/auth/*"
-  to = "/.netlify/functions/___netlify-handler/api/auth/:splat"
-  status = 200
-
-# Stripe webhook redirect
-[[redirects]]
-  from = "/api/webhooks/stripe"
-  to = "/.netlify/functions/___netlify-handler/api/webhooks/stripe"
-  status = 200
-
-# tRPC API redirects
-[[redirects]]
-  from = "/api/trpc/*"
-  to = "/.netlify/functions/___netlify-handler/api/trpc/:splat"
-  status = 200
-
-# Handle trailing slashes
-[[redirects]]
-  from = "/*//"
-  to = "/:splat/"
-  status = 301
-
-# Force HTTPS (production security)
-[[redirects]]
-  from = "http://homeschooltracker.netlify.app/*"
-  to = "https://homeschooltracker.netlify.app/:splat"
-  status = 301
-  force = true
-
-# Redirect www to non-www (if using custom domain)
+# Force HTTPS (production security) - only if needed
 # [[redirects]]
-#   from = "https://www.yourdomain.com/*"
-#   to = "https://yourdomain.com/:splat"
+#   from = "http://your-custom-domain.com/*"
+#   to = "https://your-custom-domain.com/:splat"
 #   status = 301
 #   force = true
 
-# 404 fallback for client-side routing
+# SPA fallback for client-side routing (Next.js handles this automatically with the plugin)
 [[redirects]]
   from = "/*"
-  to = "/404"
-  status = 404
-
-# Error pages
-[[error_pages]]
-  status = 404
-  path = "/404.html"
-
-[[error_pages]]
-  status = 500
-  path = "/500.html"
+  to = "/index.html"
+  status = 200
 
 # Environment-specific settings
 [context.production.environment]
