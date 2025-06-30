@@ -44,7 +44,7 @@
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src 'self' https://fonts.gstatic.com;
       img-src 'self' data: https: blob:;
-      connect-src 'self' https://api.stripe.com https://checkout.stripe.com wss://ws.pusher.com https://*.supabase.co;
+      connect-src 'self' https://api.stripe.com https://checkout.stripe.com wss://ws.pusher.com https://*.neon.tech https://api.resend.com https://*.supabase.co;
       frame-src 'self' https://js.stripe.com https://checkout.stripe.com https://accounts.google.com;
       object-src 'none';
       base-uri 'self';
@@ -176,11 +176,11 @@
   force = true
 
 # Redirect www to non-www (if using custom domain)
-[[redirects]]
-  from = "https://www.yourdomain.com/*"
-  to = "https://yourdomain.com/:splat"
-  status = 301
-  force = true
+# [[redirects]]
+#   from = "https://www.yourdomain.com/*"
+#   to = "https://yourdomain.com/:splat"
+#   status = 301
+#   force = true
 
 # 404 fallback for client-side routing
 [[redirects]]
