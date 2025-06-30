@@ -17,6 +17,9 @@ export const env = createEnv({
     STRIPE_SECRET_KEY: z.string(),
     STRIPE_WEBHOOK_SECRET: z.string(),
     NEXTAUTH_URL: z.string().url(),
+    RESEND_API_KEY: z.string(),
+    EMAIL_FROM: z.string().email(),
+    EMAIL_SERVICE: z.string().default("resend"),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -43,6 +46,9 @@ export const env = createEnv({
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    EMAIL_FROM: process.env.EMAIL_FROM,
+    EMAIL_SERVICE: process.env.EMAIL_SERVICE,
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
     NODE_ENV: process.env.NODE_ENV,
   },
