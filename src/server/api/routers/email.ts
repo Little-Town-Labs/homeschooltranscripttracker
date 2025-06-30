@@ -12,12 +12,7 @@ import { tenants, students } from "@/server/db/schema";
 const EMAIL_SERVICE = process.env.EMAIL_SERVICE || "resend"; // resend, sendgrid, postmark
 
 // Initialize email service based on configuration
-let emailService: any;
-if (EMAIL_SERVICE === "resend") {
-  // Resend will be imported dynamically to avoid errors if not configured
-} else if (EMAIL_SERVICE === "sendgrid") {
-  // SendGrid will be imported dynamically
-}
+// EmailService will be instantiated after the class definition
 
 interface EmailTemplate {
   to: string;
