@@ -1,0 +1,223 @@
+# Netlify configuration for HomeSchool Tracker Next.js App
+# Production-ready configuration with security, performance, and API handling
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+  functions = "netlify/functions"
+
+[build.environment]
+  # Disable Next.js telemetry for faster builds
+  NEXT_TELEMETRY_DISABLED = "1"
+  # Node.js version
+  NODE_VERSION = "18"
+  # Prevent npm audit during build for faster deployment
+  NPM_CONFIG_AUDIT = "false"
+  # Use faster package manager operations
+  NPM_CONFIG_FUND = "false"
+
+# Next.js plugin for optimal performance
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+  
+  [plugins.inputs]
+    # Enable ISR (Incremental Static Regeneration)
+    experimental_revalidation = true
+
+# Function configuration for API routes
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["sharp", "sqlite3"]
+
+# Security Headers - Production Ready
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Prevent clickjacking
+    X-Frame-Options = "DENY"
+    # XSS Protection
+    X-XSS-Protection = "1; mode=block"
+    # Prevent MIME type sniffing
+    X-Content-Type-Options = "nosniff"
+    # Referrer policy for privacy
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # Content Security Policy (strict for SaaS app)
+    Content-Security-Policy = """
+      default-src 'self';
+      script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com https://checkout.stripe.com https://accounts.google.com;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com;
+      img-src 'self' data: https: blob:;
+      connect-src 'self' https://api.stripe.com https://checkout.stripe.com wss://ws.pusher.com https://*.supabase.co;
+      frame-src 'self' https://js.stripe.com https://checkout.stripe.com https://accounts.google.com;
+      object-src 'none';
+      base-uri 'self';
+      form-action 'self' https://checkout.stripe.com;
+      frame-ancestors 'none';
+      upgrade-insecure-requests;
+    """
+    # Permissions Policy
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(self)"
+    # Remove server info
+    X-Powered-By = ""
+
+# Cache static assets for performance
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/favicon.ico"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+# API routes security
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# Auth routes additional security
+[[headers]]
+  for = "/api/auth/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    X-Frame-Options = "DENY"
+
+# Webhook security
+[[headers]]
+  for = "/api/webhooks/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# Main app pages - allow indexing in production
+[[headers]]
+  for = "/"
+  [headers.values]
+    X-Robots-Tag = "index, follow"
+
+[[headers]]
+  for = "/about"
+  [headers.values]
+    X-Robots-Tag = "index, follow"
+
+[[headers]]
+  for = "/pricing"
+  [headers.values]
+    X-Robots-Tag = "index, follow"
+
+# Protected pages - no indexing
+[[headers]]
+  for = "/dashboard"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/students/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/courses/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/transcripts/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/billing/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+# Redirects for API routes
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/___netlify-handler/:splat"
+  status = 200
+  conditions = {Role = ["admin", "user"]}
+
+# NextAuth.js callback redirects
+[[redirects]]
+  from = "/api/auth/*"
+  to = "/.netlify/functions/___netlify-handler/api/auth/:splat"
+  status = 200
+
+# Stripe webhook redirect
+[[redirects]]
+  from = "/api/webhooks/stripe"
+  to = "/.netlify/functions/___netlify-handler/api/webhooks/stripe"
+  status = 200
+
+# tRPC API redirects
+[[redirects]]
+  from = "/api/trpc/*"
+  to = "/.netlify/functions/___netlify-handler/api/trpc/:splat"
+  status = 200
+
+# Handle trailing slashes
+[[redirects]]
+  from = "/*//"
+  to = "/:splat/"
+  status = 301
+
+# Force HTTPS (production security)
+[[redirects]]
+  from = "http://homeschooltracker.netlify.app/*"
+  to = "https://homeschooltracker.netlify.app/:splat"
+  status = 301
+  force = true
+
+# Redirect www to non-www (if using custom domain)
+[[redirects]]
+  from = "https://www.yourdomain.com/*"
+  to = "https://yourdomain.com/:splat"
+  status = 301
+  force = true
+
+# 404 fallback for client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/404"
+  status = 404
+
+# Error pages
+[[error_pages]]
+  status = 404
+  path = "/404.html"
+
+[[error_pages]]
+  status = 500
+  path = "/500.html"
+
+# Environment-specific settings
+[context.production.environment]
+  NODE_ENV = "production"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+[context.deploy-preview.environment]
+  NODE_ENV = "development"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+[context.branch-deploy.environment]
+  NODE_ENV = "development"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+# Deploy preview configuration
+[context.deploy-preview]
+  command = "npm run build"
+
+# Branch deploy configuration  
+[context.branch-deploy]
+  command = "npm run build"

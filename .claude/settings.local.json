@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude mcp add:*)",
+      "Bash(claude mcp:*)",
+      "mcp__dart__*",
+      "mcp__playwright__*",
+      "ListMcpResourcesTool",
+      "ReadMcpResourceTool",
+      "mcp__dart__get_dartboard",
+      "mcp__dart__list_tasks",
+      "Bash(ls:*)",
+      "Bash(npm run:*)",
+      "Bash(psql:*)",
+      "Bash(node:*)"
+    ],
+    "deny": []
+  }
+}
