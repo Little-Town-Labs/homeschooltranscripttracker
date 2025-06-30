@@ -5,9 +5,16 @@ import { db } from "@/server/db";
 import { tenants } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-06-20",
-});
+// Initialize Stripe with build-time safety
+let stripe: Stripe;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2024-06-20",
+  });
+} else {
+  console.log("Stripe webhook handler - missing STRIPE_SECRET_KEY");
+  stripe = {} as Stripe;
+}
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 

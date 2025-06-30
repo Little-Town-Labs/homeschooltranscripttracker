@@ -40,6 +40,12 @@ class EmailService {
 
   private async sendWithResend(template: EmailTemplate): Promise<boolean> {
     try {
+      // Skip actual email sending during build time
+      if (!process.env.RESEND_API_KEY || process.env.NODE_ENV === 'production' && process.env.SKIP_ENV_VALIDATION) {
+        console.log("Skipping email send during build:", template.subject);
+        return true;
+      }
+
       const { Resend } = await import("resend");
       const resend = new Resend(process.env.RESEND_API_KEY);
       

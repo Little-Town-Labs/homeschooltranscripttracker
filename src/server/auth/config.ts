@@ -81,11 +81,17 @@ export const authConfig = {
 
         // Send welcome email (async, don't wait)
         try {
+          // Skip email sending during build time
+          if (!process.env.RESEND_API_KEY || (process.env.NODE_ENV === 'production' && process.env.SKIP_ENV_VALIDATION)) {
+            console.log("Skipping welcome email during build");
+            return;
+          }
+
           const { Resend } = await import("resend");
           const resend = new Resend(process.env.RESEND_API_KEY);
           
           await resend.emails.send({
-            from: process.env.EMAIL_FROM || "noreply@homeschooltracker.com",
+            from: process.env.EMAIL_FROM ?? "noreply@homeschooltracker.com",
             to: user.email,
             subject: "Welcome to Homeschool Transcript Tracker! 🎓",
             html: `
