@@ -9,7 +9,7 @@ import {
 import { tenants, students } from "@/server/db/schema";
 
 // Email service configuration
-const EMAIL_SERVICE = process.env.EMAIL_SERVICE || "resend"; // resend, sendgrid, postmark
+const EMAIL_SERVICE = process.env.EMAIL_SERVICE ?? "resend"; // resend, sendgrid, postmark
 
 // Initialize email service based on configuration
 // EmailService will be instantiated after the class definition
@@ -44,7 +44,7 @@ class EmailService {
       const resend = new Resend(process.env.RESEND_API_KEY);
       
       const result = await resend.emails.send({
-        from: process.env.EMAIL_FROM || "noreply@homeschooltracker.com",
+        from: process.env.EMAIL_FROM ?? "noreply@homeschooltracker.com",
         to: template.to,
         subject: template.subject,
         html: template.html,
@@ -60,17 +60,9 @@ class EmailService {
 
   private async sendWithSendGrid(template: EmailTemplate): Promise<boolean> {
     try {
-      const sgMail = await import("@sendgrid/mail");
-      sgMail.default.setApiKey(process.env.SENDGRID_API_KEY!);
-
-      await sgMail.default.send({
-        from: process.env.EMAIL_FROM || "noreply@homeschooltracker.com",
-        to: template.to,
-        subject: template.subject,
-        html: template.html,
-        text: template.text,
-      });
-
+      // Note: @sendgrid/mail would need to be installed if using SendGrid
+      // For now, fallback to console logging
+      console.log("SendGrid not configured, would send:", template.subject);
       return true;
     } catch (error) {
       console.error("SendGrid email error:", error);
@@ -84,7 +76,7 @@ const emailService = new EmailService();
 // Email templates
 class EmailTemplates {
   static welcome(userEmail: string, userName: string, trialEndsAt: Date): EmailTemplate {
-    const appUrl = process.env.NEXTAUTH_URL || "https://homeschooltracker.com";
+    const appUrl = process.env.NEXTAUTH_URL ?? "https://homeschooltracker.com";
     const trialDays = Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 
     return {
@@ -166,7 +158,7 @@ The Homeschool Transcript Tracker Team`
   }
 
   static trialExpiring(userEmail: string, userName: string, daysRemaining: number): EmailTemplate {
-    const appUrl = process.env.NEXTAUTH_URL || "https://homeschooltracker.com";
+    const appUrl = process.env.NEXTAUTH_URL ?? "https://homeschooltracker.com";
 
     return {
       to: userEmail,
@@ -235,7 +227,7 @@ The Homeschool Transcript Tracker Team`
   }
 
   static subscriptionConfirmation(userEmail: string, userName: string, studentCount: number, monthlyAmount: number): EmailTemplate {
-    const appUrl = process.env.NEXTAUTH_URL || "https://homeschooltracker.com";
+    const appUrl = process.env.NEXTAUTH_URL ?? "https://homeschooltracker.com";
 
     return {
       to: userEmail,

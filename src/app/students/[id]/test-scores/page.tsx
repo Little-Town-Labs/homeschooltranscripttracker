@@ -4,7 +4,7 @@ import { auth } from "@/server/auth";
 import { StudentTestScoresPage } from "@/app/_components/student-test-scores-page";
 
 interface PageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function StudentTestScores({ params }: PageProps) {
@@ -18,5 +18,7 @@ export default async function StudentTestScores({ params }: PageProps) {
     redirect("/onboarding");
   }
 
-  return <StudentTestScoresPage studentId={params.id} />;
+  const { id } = await params;
+
+  return <StudentTestScoresPage studentId={id} />;
 }
