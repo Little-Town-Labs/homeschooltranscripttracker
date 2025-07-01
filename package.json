@@ -64,8 +64,9 @@
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "@faker-js/faker": "^8.0.0",
+    "@testing-library/dom": "^10.0.0",
     "@testing-library/jest-dom": "^6.0.0",
-    "@testing-library/react": "^15.0.0",
+    "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.0.0",
     "@vitejs/plugin-react": "^4.0.0",
     "@vitest/coverage-v8": "^1.0.0",
@@ -73,11 +74,6 @@
     "happy-dom": "^12.0.0",
     "msw": "^2.0.0",
     "vitest": "^1.0.0"
-  },
-  "overrides": {
-    "@testing-library/react": {
-      "@types/react": "$@types/react"
-    }
   },
   "ct3aMetadata": {
     "initVersion": "7.39.3"
