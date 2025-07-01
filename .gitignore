@@ -13,6 +13,10 @@
 /nyc_output
 /.nyc_output
 
+# Test reports
+TEST_REPORT.html
+*.test-report.html
+
 # Database files
 /prisma/db.sqlite
 /prisma/db.sqlite-journal
