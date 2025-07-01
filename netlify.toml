@@ -2,7 +2,7 @@
 # Production-ready configuration with security, performance, and API handling
 
 [build]
-  command = "npm run build"
+  command = "npm install --legacy-peer-deps && npm run build"
   publish = ".next"
   functions = "netlify/functions"
 
@@ -10,7 +10,7 @@
   # Disable Next.js telemetry for faster builds
   NEXT_TELEMETRY_DISABLED = "1"
   # Node.js version
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
   # Prevent npm audit during build for faster deployment
   NPM_CONFIG_AUDIT = "false"
   # Use faster package manager operations

@@ -74,6 +74,11 @@
     "msw": "^2.0.0",
     "vitest": "^1.0.0"
   },
+  "overrides": {
+    "@testing-library/react": {
+      "@types/react": "$@types/react"
+    }
+  },
   "ct3aMetadata": {
     "initVersion": "7.39.3"
   },
