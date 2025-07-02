@@ -8,8 +8,8 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: ['./tests/setup/test-setup.ts'],
     globalSetup: './tests/setup/global-setup.ts',
-    include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    exclude: ['node_modules', 'dist', '.next', 'tests/e2e/**'],
+    include: ['tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}', 'src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    exclude: ['**/node_modules/**', 'dist', '.next', 'tests/e2e/**', '.netlify/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
