@@ -138,11 +138,20 @@ export const authConfig = {
   },
   callbacks: {
     session: async ({ session, user }) => {
+      console.log('[AUTH DEBUG] Session callback called with user ID:', user.id);
+      
       // Fetch fresh user data to get tenant info
       const dbUser = await db.select().from(users).where(eq(users.id, user.id)).limit(1);
       const userData = dbUser[0];
       
-      return {
+      console.log('[AUTH DEBUG] Database user data:', userData ? {
+        id: userData.id,
+        email: userData.email,
+        tenantId: userData.tenantId,
+        role: userData.role
+      } : 'User not found');
+      
+      const sessionData = {
         ...session,
         user: {
           ...session.user,
@@ -151,6 +160,10 @@ export const authConfig = {
           role: userData?.role ?? null,
         },
       };
+      
+      console.log('[AUTH DEBUG] Returning session with tenantId:', sessionData.user.tenantId, 'role:', sessionData.user.role);
+      
+      return sessionData;
     },
   },
 } satisfies NextAuthConfig;
