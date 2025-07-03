@@ -187,7 +187,7 @@ interface StudentTranscriptCardProps {
     firstName: string;
     lastName: string;
     graduationYear: number;
-    gpaScale: "4.0" | "5.0";
+    gpaScale: "4.0" | "5.0" | null;
   };
   selectedFormat: string;
   onGenerate: () => void;
@@ -230,7 +230,7 @@ function StudentTranscriptCard({ student, selectedFormat, onGenerate }: StudentT
               </div>
               <div>
                 <span className="text-gray-500">GPA Scale:</span>
-                <span className="ml-2 font-medium">{student.gpaScale}</span>
+                <span className="ml-2 font-medium">{student.gpaScale ?? "Not set"}</span>
               </div>
               <div>
                 <span className="text-gray-500">Format:</span>
@@ -275,6 +275,17 @@ function StudentTranscriptCard({ student, selectedFormat, onGenerate }: StudentT
               </ul>
             </div>
           )}
+
+          {validation?.warnings && validation.warnings.length > 0 && (
+            <div className="mt-4">
+              <h4 className="text-sm font-medium text-amber-800">Transcript Status:</h4>
+              <ul className="text-sm text-amber-600 mt-1 space-y-1">
+                {validation.warnings.map((warning, index) => (
+                  <li key={index}>• {warning}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         <div className="ml-6 space-y-2">
@@ -287,7 +298,9 @@ function StudentTranscriptCard({ student, selectedFormat, onGenerate }: StudentT
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
           >
-            Generate Transcript
+            {validation?.transcriptStatus === "partial" 
+              ? "Generate Partial Transcript" 
+              : "Generate Transcript"}
           </button>
           
           {validation && validation.requiresSubscription && (

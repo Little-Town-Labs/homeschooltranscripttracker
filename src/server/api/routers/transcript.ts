@@ -234,22 +234,33 @@ export const transcriptRouter = createTRPCRouter({
         .where(and(eq(courses.studentId, input.studentId), eq(courses.tenantId, ctx.tenantId)));
 
       const issues = [];
+      const warnings = [];
       
       if (coursesCount.length === 0) {
         issues.push("No courses found for this student");
       }
 
-      // Check for minimum graduation requirements (placeholder)
-      if (coursesCount.length < 20) {
-        issues.push("Minimum 20 credits typically required for graduation");
+      // Add informational warnings for partial transcripts
+      if (coursesCount.length > 0 && coursesCount.length < 20) {
+        warnings.push(`This is a partial transcript with ${coursesCount.length} course${coursesCount.length === 1 ? '' : 's'}. Standard graduation typically requires 20+ credits.`);
+      }
+
+      // Determine transcript status
+      let transcriptStatus = "complete";
+      if (coursesCount.length === 0) {
+        transcriptStatus = "empty";
+      } else if (coursesCount.length < 20) {
+        transcriptStatus = "partial";
       }
 
       return {
-        canGenerate: issues.length === 0,
+        canGenerate: coursesCount.length > 0, // Can generate if any courses exist
         hasActiveSubscription,
         issues,
+        warnings,
         requiresSubscription: !hasActiveSubscription,
         coursesCount: coursesCount.length,
+        transcriptStatus,
       };
     }),
 
