@@ -23,12 +23,39 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
   const currentFormat = formats?.templates.find(t => t.id === format);
 
   const handleDownloadPDF = async () => {
-    setIsGenerating(true);
-    // TODO: Implement PDF generation
-    setTimeout(() => {
+    try {
+      setIsGenerating(true);
+      
+      // Generate PDF using tRPC
+      const pdfResult = await api.transcript.generatePdf.mutate({
+        studentId,
+        format: format as "standard" | "detailed" | "college-prep",
+      });
+
+      // Convert base64 to blob and download
+      const pdfBlob = new Blob(
+        [Uint8Array.from(atob(pdfResult.pdfData), c => c.charCodeAt(0))],
+        { type: 'application/pdf' }
+      );
+
+      // Create download link
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = pdfResult.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      console.log('PDF generated successfully:', pdfResult.filename);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      // Show user-friendly error message
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
       setIsGenerating(false);
-      alert("PDF generation will be implemented in the next phase!");
-    }, 2000);
+    }
   };
 
   const handlePrint = () => {
