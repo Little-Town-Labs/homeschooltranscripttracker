@@ -15,6 +15,7 @@ export function StudentForm({ studentId, onClose }: StudentFormProps) {
     dateOfBirth: "",
     graduationYear: new Date().getFullYear() + 4,
     gpaScale: "4.0" as "4.0" | "5.0",
+    minCreditsForGraduation: 24,
   });
 
   const isEditing = !!studentId;
@@ -48,6 +49,7 @@ export function StudentForm({ studentId, onClose }: StudentFormProps) {
           : "") as string,
         graduationYear: student.graduationYear,
         gpaScale: student.gpaScale || "4.0",
+        minCreditsForGraduation: student.minCreditsForGraduation ? Number(student.minCreditsForGraduation) : 24,
       });
     }
   }, [student]);
@@ -68,11 +70,13 @@ export function StudentForm({ studentId, onClose }: StudentFormProps) {
           id: studentId,
           ...formData,
           dateOfBirth: formData.dateOfBirth || undefined,
+          minCreditsForGraduation: formData.minCreditsForGraduation,
         });
       } else {
         await createStudent.mutateAsync({
           ...formData,
           dateOfBirth: formData.dateOfBirth || undefined,
+          minCreditsForGraduation: formData.minCreditsForGraduation,
         });
       }
     } catch (error) {
@@ -173,6 +177,22 @@ export function StudentForm({ studentId, onClose }: StudentFormProps) {
               <option value="4.0">4.0 Scale (Standard)</option>
               <option value="5.0">5.0 Scale (Weighted)</option>
             </select>
+          </div>
+
+          <div>
+            <label htmlFor="minCreditsForGraduation" className="block text-sm font-medium text-gray-700">
+              Minimum Credits Required for Graduation
+            </label>
+            <input
+              type="number"
+              id="minCreditsForGraduation"
+              min={0}
+              step={0.5}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              value={formData.minCreditsForGraduation}
+              onChange={(e) => handleInputChange("minCreditsForGraduation", parseFloat(e.target.value))}
+            />
+            <p className="text-xs text-gray-500 mt-1">Missouri public schools require 24 credits, but you may set your own minimum.</p>
           </div>
 
           <div className="flex space-x-3 pt-4">

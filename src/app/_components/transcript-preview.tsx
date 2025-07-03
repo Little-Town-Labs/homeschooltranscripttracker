@@ -137,8 +137,8 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
               <div className="space-y-1 text-sm">
                 <div><strong>Cumulative GPA:</strong> {cumulativeGPA.toFixed(2)} ({student.gpaScale} scale)</div>
                 <div><strong>Total Credits:</strong> {totalCredits}</div>
-                <div><strong>Class Rank:</strong> N/A (Homeschooled)</div>
-                <div><strong>Graduation Status:</strong> {totalCredits >= 24 ? "Meets Requirements" : "In Progress"}</div>
+                <div><strong>Minimum Required for Graduation:</strong> {student.minCreditsForGraduation ?? 24}</div>
+                <div><strong>Graduation Status:</strong> {totalCredits >= (student.minCreditsForGraduation ?? 24) ? "Meets Requirements" : "In Progress"}</div>
               </div>
             </div>
           </div>

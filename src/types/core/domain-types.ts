@@ -167,6 +167,7 @@ export interface StudentFormData {
   dateOfBirth?: string; // ISO date string
   graduationYear: number;
   gpaScale: GpaScale;
+  minCreditsForGraduation: number; // Minimum credits required for graduation for this student
 }
 
 export interface CourseFormData {

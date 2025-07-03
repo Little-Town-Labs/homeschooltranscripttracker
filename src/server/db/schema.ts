@@ -209,6 +209,9 @@ export const students = createTable("student", {
   // Student account linking
   userId: varchar("user_id", { length: 255 }).references(() => users.id, { onDelete: "set null" }),
   
+  // New field for minimum credits required for graduation
+  minCreditsForGraduation: decimal("min_credits_for_graduation", { precision: 4, scale: 1 }).default("24.0"),
+  
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
 }, (t) => [
