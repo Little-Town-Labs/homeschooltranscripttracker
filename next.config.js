@@ -16,6 +16,23 @@ const config = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
+  webpack: (config, { isServer }) => {
+    // Handle @react-pdf/renderer which has canvas dependency issues
+    if (isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        canvas: false,
+      };
+    }
+    
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      canvas: false,
+      encoding: false,
+    };
+    
+    return config;
+  },
 };
 
 export default config;

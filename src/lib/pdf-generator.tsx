@@ -2,6 +2,9 @@ import React from 'react';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { TranscriptPDFTemplate } from '@/components/transcript-pdf-template';
 
+// Configure @react-pdf/renderer for server-side use
+import { Font } from '@react-pdf/renderer';
+
 // Types that match our transcript data structure
 interface Student {
   id: string;

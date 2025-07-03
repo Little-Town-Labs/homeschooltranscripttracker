@@ -13,7 +13,8 @@ import {
   tenants,
   type Grade 
 } from "@/server/db/schema";
-import { PDFGenerator } from "@/lib/pdf-generator";
+// Dynamic import for PDF generation to avoid SSR issues
+// import { PDFGenerator } from "@/lib/pdf-generator";
 
 export const transcriptRouter = createTRPCRouter({
   // Get complete transcript data for a student
@@ -299,8 +300,10 @@ export const transcriptRouter = createTRPCRouter({
       // Get best test scores per type
       const bestTestScores = studentTestScores.reduce((acc, score) => {
         const existing = acc.find(s => s.testType === score.testType);
-        const scoreValue = typeof score.scores === 'object' && score.scores ? (score.scores as any).total || 0 : 0;
-        const existingValue = existing && typeof existing.scores === 'object' && existing.scores ? (existing.scores as any).total || 0 : 0;
+        const scoreValue = typeof score.scores === 'object' && score.scores ? 
+          (score.scores as Record<string, unknown>).total as number ?? 0 : 0;
+        const existingValue = existing && typeof existing.scores === 'object' && existing.scores ? 
+          (existing.scores as Record<string, unknown>).total as number ?? 0 : 0;
         if (!existing || scoreValue > existingValue) {
           const filtered = acc.filter(s => s.testType !== score.testType);
           filtered.push(score);
@@ -320,37 +323,27 @@ export const transcriptRouter = createTRPCRouter({
         generatedAt: new Date(),
       };
 
-      // Validate transcript data
-      const validation = PDFGenerator.validateTranscriptData(transcriptData);
-      if (!validation.isValid) {
-        throw new Error(`Invalid transcript data: ${validation.errors.join(', ')}`);
-      }
-
-      // Determine PDF options based on subscription status
-      const subscriptionLevel = isInTrial ? 'trial' : 'premium'; // Simplified for now
-      const pdfOptions = PDFGenerator.getOptionsForSubscription(subscriptionLevel, input.format);
-
       try {
+        // Dynamic import PDF generator to avoid SSR issues
+        const { PDFGenerator } = await import("@/lib/pdf-generator");
+        
         // Generate PDF
-        const pdfBuffer = await PDFGenerator.generateTranscriptPDF(transcriptData, pdfOptions);
-        
-        // Convert to base64 for transmission
-        const base64PDF = PDFGenerator.bufferToBase64(pdfBuffer);
-        
-        // Generate filename
-        const filename = PDFGenerator.generateFilename(student[0], input.format);
-
-        return {
-          pdfData: base64PDF,
-          filename,
-          size: pdfBuffer.length,
-          generatedAt: new Date(),
+        const pdfBuffer = await PDFGenerator.generateTranscriptPDF(transcriptData, {
           format: input.format,
-          hasWatermark: pdfOptions.includeWatermark,
+          includeWatermark: isInTrial // Add watermark for trial users
+        });
+
+        // Return base64 encoded PDF
+        return {
+          pdfData: pdfBuffer.toString('base64'),
+          filename: `transcript-${student[0].firstName}-${student[0].lastName}-${input.format}.pdf`
         };
       } catch (error) {
         console.error('PDF generation error:', error);
-        throw new Error('Failed to generate PDF transcript');
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to generate PDF"
+        });
       }
     }),
 
