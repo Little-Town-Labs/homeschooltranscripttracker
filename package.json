@@ -7,9 +7,9 @@
     "build": "next build",
     "check": "next lint && tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "netlify dev:exec drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
+    "db:studio": "netlify dev:exec drizzle-kit studio",
     "dev": "next dev --turbo",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
@@ -30,6 +30,7 @@
   "dependencies": {
     "@auth/drizzle-adapter": "^1.7.2",
     "@eslint/eslintrc": "^3.3.1",
+    "@netlify/neon": "^0.1.0",
     "@t3-oss/env-nextjs": "^0.12.0",
     "@tailwindcss/postcss": "^4.0.15",
     "@tanstack/react-query": "^5.69.0",
@@ -39,7 +40,7 @@
     "@types/node": "^20.14.10",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "drizzle-kit": "^0.30.5",
+    "dotenv": "^17.0.1",
     "drizzle-orm": "^0.41.0",
     "eslint": "^9.23.0",
     "eslint-config-next": "^15.2.3",
@@ -60,10 +61,8 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@netlify/plugin-nextjs": "^5.11.4",
-    "prettier": "^3.5.3",
-    "prettier-plugin-tailwindcss": "^0.6.11",
     "@faker-js/faker": "^8.0.0",
+    "@netlify/plugin-nextjs": "^5.11.4",
     "@testing-library/dom": "^10.0.0",
     "@testing-library/jest-dom": "^6.0.0",
     "@testing-library/react": "^16.0.0",
@@ -71,8 +70,11 @@
     "@vitejs/plugin-react": "^4.0.0",
     "@vitest/coverage-v8": "^1.0.0",
     "@vitest/ui": "^1.0.0",
+    "drizzle-kit": "^0.31.4",
     "happy-dom": "^12.0.0",
     "msw": "^2.0.0",
+    "prettier": "^3.5.3",
+    "prettier-plugin-tailwindcss": "^0.6.11",
     "vitest": "^1.0.0"
   },
   "ct3aMetadata": {

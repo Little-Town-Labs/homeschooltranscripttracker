@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Technology Stack (T3 Stack + Enhancements)
 - **Framework**: Next.js 14 (App Router) with TypeScript
-- **Database**: NeonDB (PostgreSQL) with Drizzle ORM
+- **Database**: NeonDB (PostgreSQL) with Drizzle ORM + @netlify/neon integration
 - **API**: tRPC for type-safe APIs
 - **Auth**: NextAuth.js with multi-tenant support
 - **Styling**: Tailwind CSS + shadcn/ui
@@ -28,9 +28,9 @@ src/
 
 ## Development Commands
 ```bash
-# Setup (when implementing)
-npm create t3-app@latest . --nextAuth --prisma --tailwind --trpc
-npm install drizzle-orm @neondb/serverless
+# Setup
+npm create t3-app@latest . --nextAuth --tailwind --trpc
+npm install drizzle-orm @netlify/neon
 
 # Development
 npm run dev          # Start development server

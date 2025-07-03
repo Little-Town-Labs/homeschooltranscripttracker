@@ -56,6 +56,7 @@ export const subjectEnum = pgEnum("subject", [
   "English",
   "Mathematics", 
   "Science",
+  "Computer Science",
   "Social Studies",
   "Foreign Language",
   "Fine Arts",
