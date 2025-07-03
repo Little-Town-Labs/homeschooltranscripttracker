@@ -104,9 +104,17 @@ export function CourseForm({ courseId, preselectedStudentId, onClose }: CourseFo
 
   // Common subjects
   const subjectOptions = [
-    "Mathematics", "English", "Science", "History", "Social Studies",
-    "Foreign Language", "Art", "Music", "Physical Education", "Health",
-    "Computer Science", "Business", "Economics", "Psychology", "Other"
+    "English",
+    "Mathematics",
+    "Science",
+    "Computer Science",
+    "Social Studies",
+    "Foreign Language",
+    "Fine Arts",
+    "Physical Education",
+    "Career/Technical Education",
+    "Elective",
+    "Other"
   ];
 
   return (
