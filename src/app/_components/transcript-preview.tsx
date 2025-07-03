@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { api } from "@/trpc/react";
+import { usePdfGenerator } from "@/hooks/use-pdf-generator";
 
 interface TranscriptPreviewProps {
   studentId: string;
@@ -20,39 +21,36 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
   // Get transcript formats for current format info
   const { data: formats } = api.transcript.getTranscriptFormats.useQuery();
 
+  // PDF generation hook
+  const { generatePdf } = usePdfGenerator();
+
   const currentFormat = formats?.templates.find(t => t.id === format);
 
   const handleDownloadPDF = async () => {
+    if (!transcriptData?.tenant) return;
+    
     try {
       setIsGenerating(true);
       
-      // Generate PDF using tRPC
-      const pdfResult = await api.transcript.generatePdf.mutate({
-        studentId,
-        format: format as "standard" | "detailed" | "college-prep",
+      // Generate PDF blob
+      const pdfBlob = await generatePdf(transcriptData, {
+        format: format as 'standard' | 'detailed' | 'college-prep',
+        includeWatermark: false, // TODO: Check subscription status
       });
-
-      // Convert base64 to blob and download
-      const pdfBlob = new Blob(
-        [Uint8Array.from(atob(pdfResult.pdfData), c => c.charCodeAt(0))],
-        { type: 'application/pdf' }
-      );
-
+      
       // Create download link
       const url = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = pdfResult.filename;
+      link.download = `${transcriptData.student.firstName}_${transcriptData.student.lastName}_Transcript.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-
-      console.log('PDF generated successfully:', pdfResult.filename);
+      
     } catch (error) {
       console.error('Error generating PDF:', error);
-      // Show user-friendly error message
-      alert('Failed to generate PDF. Please try again.');
+      // TODO: Show error toast/message to user
     } finally {
       setIsGenerating(false);
     }
@@ -93,6 +91,14 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
   }
 
   const { student, tenant, coursesByYear, gpaByYear, cumulativeGPA, totalCredits, testScores } = transcriptData;
+
+  // Type guard for test scores
+  const getTestScoreValue = (scores: unknown, key: string): string | number | undefined => {
+    if (typeof scores === 'object' && scores !== null && key in scores) {
+      return (scores as Record<string, unknown>)[key] as string | number | undefined;
+    }
+    return undefined;
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -136,7 +142,7 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
               OFFICIAL HIGH SCHOOL TRANSCRIPT
             </h1>
             <div className="text-lg font-semibold text-gray-800">
-              {tenant?.name || "Homeschool"}
+              {tenant?.name ?? "Homeschool"}
             </div>
             <div className="text-sm text-gray-600 mt-2">
               Generated on {new Date().toLocaleDateString()}
@@ -186,7 +192,7 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
                 <div><strong>Cumulative GPA:</strong> {cumulativeGPA.toFixed(2)} ({student.gpaScale} scale)</div>
                 <div><strong>Total Credits:</strong> {totalCredits}</div>
                 <div><strong>Minimum Required for Graduation:</strong> {student.minCreditsForGraduation ?? 24}</div>
-                <div><strong>Graduation Status:</strong> {totalCredits >= (student.minCreditsForGraduation ?? 24) ? "Meets Requirements" : "In Progress"}</div>
+                <div><strong>Graduation Status:</strong> {totalCredits >= Number(student.minCreditsForGraduation ?? 24) ? "Meets Requirements" : "In Progress"}</div>
               </div>
             </div>
           </div>
@@ -205,7 +211,7 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
                     <h3 className="font-semibold text-gray-800">{year} Academic Year</h3>
                     {gpaByYear[year] && (
                       <div className="text-sm text-gray-600">
-                        Year GPA: {gpaByYear[year]!.gpa.toFixed(2)} | Credits: {gpaByYear[year]!.credits}
+                        Year GPA: {gpaByYear[year].gpa.toFixed(2)} | Credits: {gpaByYear[year].credits}
                       </div>
                     )}
                   </div>
@@ -239,7 +245,7 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
                                 {item.course.creditHours}
                               </td>
                               <td className="border border-gray-300 px-3 py-2 text-center font-medium">
-                                {item.grade?.grade || "IP"}
+                                {item.grade?.grade ?? "IP"}
                               </td>
                               <td className="border border-gray-300 px-3 py-2 text-center">
                                 {item.grade ? (Number(item.grade.gpaPoints) * Number(item.course.creditHours)).toFixed(1) : "—"}
@@ -261,20 +267,23 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {testScores.map((score) => {
-                  const scores = typeof score.scores === 'object' && score.scores ? score.scores as any : {};
+                  const total = getTestScoreValue(score.scores, 'total');
+                  const maxScore = getTestScoreValue(score.scores, 'maxScore');
+                  const percentile = getTestScoreValue(score.scores, 'percentile');
+                  
                   return (
                     <div key={score.id} className="border border-gray-300 p-3 rounded">
                       <div className="font-semibold text-gray-900">{score.testType}</div>
                       <div className="text-lg font-bold text-indigo-600">
-                        {scores.total || 'N/A'}
-                        {scores.maxScore && ` / ${scores.maxScore}`}
+                        {total ?? 'N/A'}
+                        {maxScore && ` / ${maxScore}`}
                       </div>
                       <div className="text-sm text-gray-600">
                         {new Date(score.testDate).toLocaleDateString()}
                       </div>
-                      {scores.percentile && (
+                      {percentile && (
                         <div className="text-sm text-gray-500">
-                          {scores.percentile}th percentile
+                          {percentile}th percentile
                         </div>
                       )}
                     </div>
@@ -307,7 +316,7 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
               This transcript is an official record of coursework completed in a homeschool setting.
             </div>
             <div className="mb-4">
-              Issued by: {tenant?.name || "Homeschool"} | Contact: {tenant?.primaryEmail || "contact@homeschool.edu"}
+              Issued by: {tenant?.name ?? "Homeschool"} | Contact: {tenant?.primaryEmail ?? "contact@homeschool.edu"}
             </div>
             <div className="flex justify-between items-center">
               <div>
