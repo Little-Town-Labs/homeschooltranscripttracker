@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
+import type { InferSelectModel } from "drizzle-orm";
 
 import {
   createTRPCRouter,
@@ -8,10 +9,19 @@ import {
 } from "@/server/api/trpc";
 import { students, gpaScaleEnum } from "@/server/db/schema";
 
+type Student = InferSelectModel<typeof students>;
+
+// Helper function to serialize student data for TRPC responses
+const serializeStudent = (student: Student) => ({
+  ...student,
+  dateOfBirth: student.dateOfBirth ?? null,
+});
+
 export const studentRouter = createTRPCRouter({
   // Get all students for the current tenant
   getAll: guardianProcedure.query(async ({ ctx }) => {
-    return ctx.db.select().from(students).where(eq(students.tenantId, ctx.tenantId));
+    const studentsList = await ctx.db.select().from(students).where(eq(students.tenantId, ctx.tenantId));
+    return studentsList.map(serializeStudent);
   }),
 
   // Get a specific student by ID
@@ -28,7 +38,7 @@ export const studentRouter = createTRPCRouter({
         throw new Error("Student not found");
       }
 
-      return student[0];
+      return serializeStudent(student[0]);
     }),
 
   // Create a new student
@@ -40,20 +50,26 @@ export const studentRouter = createTRPCRouter({
         dateOfBirth: z.string().optional(),
         graduationYear: z.number().int().min(2020).max(2040),
         gpaScale: z.enum(gpaScaleEnum.enumValues).default("4.0"),
-        isActive: z.boolean().default(true),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const [newStudent] = await ctx.db
         .insert(students)
         .values({
-          ...input,
+          firstName: input.firstName,
+          lastName: input.lastName,
+          dateOfBirth: input.dateOfBirth ?? null,
+          graduationYear: input.graduationYear,
+          gpaScale: input.gpaScale,
           tenantId: ctx.tenantId,
-          dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
         })
         .returning();
 
-      return newStudent;
+      if (!newStudent) {
+        throw new Error("Failed to create student");
+      }
+
+      return serializeStudent(newStudent);
     }),
 
   // Update a student
@@ -66,21 +82,14 @@ export const studentRouter = createTRPCRouter({
         dateOfBirth: z.string().optional(),
         graduationYear: z.number().int().min(2020).max(2040).optional(),
         gpaScale: z.enum(gpaScaleEnum.enumValues).optional(),
-        isActive: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...updateData } = input;
-      
-      // Convert dateOfBirth string to Date if provided
-      const processedData = {
-        ...updateData,
-        dateOfBirth: updateData.dateOfBirth ? new Date(updateData.dateOfBirth) : undefined,
-      };
 
       const [updatedStudent] = await ctx.db
         .update(students)
-        .set(processedData)
+        .set(updateData)
         .where(and(eq(students.id, id), eq(students.tenantId, ctx.tenantId)))
         .returning();
 
@@ -88,16 +97,15 @@ export const studentRouter = createTRPCRouter({
         throw new Error("Student not found or access denied");
       }
 
-      return updatedStudent;
+      return serializeStudent(updatedStudent);
     }),
 
-  // Soft delete a student (set isActive to false)
+  // Delete a student (remove from database)
   delete: primaryGuardianProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const [deletedStudent] = await ctx.db
-        .update(students)
-        .set({ isActive: false })
+        .delete(students)
         .where(and(eq(students.id, input.id), eq(students.tenantId, ctx.tenantId)))
         .returning();
 
@@ -105,7 +113,7 @@ export const studentRouter = createTRPCRouter({
         throw new Error("Student not found or access denied");
       }
 
-      return deletedStudent;
+      return serializeStudent(deletedStudent);
     }),
 
   // Get student count for dashboard
@@ -113,7 +121,7 @@ export const studentRouter = createTRPCRouter({
     const result = await ctx.db
       .select({ count: students.id })
       .from(students)
-      .where(and(eq(students.tenantId, ctx.tenantId), eq(students.isActive, true)));
+      .where(eq(students.tenantId, ctx.tenantId));
 
     return result.length;
   }),
