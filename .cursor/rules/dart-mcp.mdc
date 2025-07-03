@@ -1,0 +1,385 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Dart MCP Integration Guide
+
+Dart MCP provides comprehensive project management, task management, and documentation capabilities directly within Cursor. This rule outlines best practices for leveraging Dart tools in development workflows.
+
+## **Core Dart MCP Tools**
+
+### **Configuration & Setup**
+- **`mcp_dart_get_config`**: Get current workspace configuration, dartboards, folders, statuses, and available options
+- Always call this first to understand available dartboards, tags, and organizational structure
+
+### **Task Management**
+- **`mcp_dart_create_task`**: Create new tasks with full metadata (title, description, assignee, dartboard, priority, tags, etc.)
+- **`mcp_dart_list_tasks`**: Filter and list tasks by various criteria (dartboard, assignee, status, tags, dates)
+- **`mcp_dart_get_task`**: Get detailed task information by ID
+- **`mcp_dart_update_task`**: Modify existing tasks (status, assignee, description, etc.)
+- **`mcp_dart_delete_task`**: Move tasks to trash (recoverable)
+- **`mcp_dart_add_task_comment`**: Add comments to tasks for progress tracking
+- **`mcp_dart_list_task_comments`**: Retrieve task comment history
+
+### **Documentation Management**
+- **`mcp_dart_create_doc`**: Create documentation in organized folders
+- **`mcp_dart_list_docs`**: Find and filter documentation
+- **`mcp_dart_get_doc`**: Retrieve specific documentation content
+- **`mcp_dart_update_doc`**: Update documentation content
+- **`mcp_dart_delete_doc`**: Archive documentation
+
+### **Project Organization**
+- **`mcp_dart_get_dartboard`**: Get dartboard details and contained tasks
+- **`mcp_dart_get_folder`**: Get folder contents for documentation
+- **`mcp_dart_get_view`**: Access custom views and filters
+
+## **Development Integration Patterns**
+
+### **Starting a Development Session**
+```typescript
+// ✅ DO: Begin with workspace awareness
+// 1. Get current configuration
+const config = await mcp_dart_get_config();
+
+// 2. List current tasks for active project
+const tasks = await mcp_dart_list_tasks({
+  dartboard: "AeroCode/AeroCode", // Use actual project dartboard
+  status: "Doing",
+  assignee: "Gary Brown"
+});
+
+// 3. Check for any critical or high-priority items
+const urgentTasks = await mcp_dart_list_tasks({
+  priority: "critical",
+  status: "To-do"
+});
+```
+
+### **Task Creation Patterns**
+```typescript
+// ✅ DO: Create well-structured tasks
+await mcp_dart_create_task({
+  title: "Implement User Authentication API",
+  description: "Create JWT-based authentication endpoints with refresh token support",
+  dartboard: "AeroCode/AeroCode",
+  priority: "high",
+  assignee: "Gary Brown",
+  tags: ["Feature", "API-Updates", "Authentication"],
+  type: "Task",
+  size: "large",
+  dueAt: "2025-07-01T09:00:00Z", // Always use 9:00am timezone format
+  startAt: "2025-06-25T09:00:00Z"
+});
+
+// ✅ DO: Link related tasks through comments
+await mcp_dart_add_task_comment({
+  taskId: "taskId123",
+  text: "Related to issue #456 in GitHub. Depends on database schema updates in task XYZ."
+});
+```
+
+### **Progress Tracking Patterns**
+```typescript
+// ✅ DO: Update task status as work progresses
+await mcp_dart_update_task({
+  id: "taskId123",
+  status: "Doing",
+  customProperties: {
+    "Progress": "50%",
+    "Current Branch": "feature/auth-api"
+  }
+});
+
+// ✅ DO: Add detailed progress comments
+await mcp_dart_add_task_comment({
+  taskId: "taskId123",
+  text: `## Progress Update
+- ✅ JWT token generation complete
+- ✅ User login endpoint implemented
+- 🔄 Refresh token logic in progress
+- ⏳ Password reset flow pending
+
+**Next Steps:**
+- Complete refresh token implementation
+- Add input validation
+- Write unit tests`
+});
+```
+
+## **Project Organization Best Practices**
+
+### **Dartboard Structure**
+- **Use hierarchical naming**: `ProjectName/ComponentName`
+- **Available Dartboards**:
+  - `AeroCode/AeroCode` - Main AeroCode development
+  - `AeroCode/Tasks` - General AeroCode tasks
+  - `Personal/Tutorial tasks` - Learning and tutorials
+  - `General/Tasks` - Cross-project tasks
+
+### **Tagging Strategy**
+```typescript
+// ✅ DO: Use consistent tag categories
+const tagCategories = {
+  // Feature Type
+  "Feature", "Bug", "Enhancement", "Refactor",
+  
+  // Component Area  
+  "Frontend", "API-Updates", "Architecture", "Testing",
+  
+  // Priority/Impact
+  "Critical-Blocker", "Major-Refactor", "Quality-Gates",
+  
+  // Team/Role
+  "Engineering", "Quality-Assurance", "Architecture-Design",
+  
+  // Technology
+  "google-adk", "Frontend-Updates", "LLM-Optimization"
+};
+
+// Example task with proper tagging
+await mcp_dart_create_task({
+  title: "Fix Critical Memory Leak in Agent Executor",
+  tags: ["Bug", "Critical-Blocker", "Agent-Tools", "Performance"],
+  priority: "critical",
+  dartboard: "AeroCode/AeroCode"
+});
+```
+
+### **Task Sizing Guide**
+- **xs/extra small**: Simple config changes, documentation updates
+- **s/small**: Single function implementation, minor bug fixes
+- **m/medium**: Feature components, moderate API changes
+- **l/large**: Major features, significant refactoring
+- **xl/extra large**: Architecture overhauls, major system changes
+
+## **Documentation Workflow**
+
+### **Documentation Creation**
+```typescript
+// ✅ DO: Organize docs in appropriate folders
+await mcp_dart_create_doc({
+  title: "Agent Integration Architecture",
+  folder: "AeroCode/AeroCode Documentation",
+  text: `# Agent Integration Architecture
+
+## Overview
+This document outlines the integration patterns...
+
+## Implementation Details
+...
+
+## Testing Strategy
+...`
+});
+```
+
+### **Linking Tasks and Documentation**
+```typescript
+// ✅ DO: Reference documentation in tasks
+await mcp_dart_add_task_comment({
+  taskId: "architectureTaskId",
+  text: "Architecture documentation created: [Agent Integration Architecture](link-to-doc)\n\nImplementation ready to begin based on documented patterns."
+});
+```
+
+## **Development Workflow Integration**
+
+### **Sprint Planning with Dart**
+```typescript
+// ✅ DO: Plan sprints using Dart tasks
+// 1. List all pending tasks
+const backlog = await mcp_dart_list_tasks({
+  dartboard: "AeroCode/AeroCode",
+  status: "To-do"
+});
+
+// 2. Filter by priority and dependencies
+const sprintCandidates = await mcp_dart_list_tasks({
+  dartboard: "AeroCode/AeroCode", 
+  priority: "high",
+  status: "To-do"
+});
+
+// 3. Move selected tasks to active status
+await mcp_dart_update_task({
+  id: "selectedTaskId",
+  status: "Doing",
+  startAt: "2025-06-24T09:00:00Z"
+});
+```
+
+### **Daily Standup Preparation**
+```typescript
+// ✅ DO: Generate standup reports from Dart
+const myActiveTasks = await mcp_dart_list_tasks({
+  assignee: "Gary Brown",
+  status: "Doing",
+  dartboard: "AeroCode/AeroCode"
+});
+
+const completedYesterday = await mcp_dart_list_tasks({
+  assignee: "Gary Brown", 
+  status: "Done",
+  // Filter by recent completion date
+});
+```
+
+### **Code Review Integration**
+```typescript
+// ✅ DO: Update tasks during code review
+await mcp_dart_add_task_comment({
+  taskId: "featureTaskId",
+  text: `## Code Review Status
+**PR**: #123 - Implement user authentication
+**Reviewers**: @reviewer1, @reviewer2
+**Status**: Awaiting feedback on error handling approach
+
+**Files Changed:**
+- src/auth/AuthService.kt
+- src/controllers/AuthController.kt
+- test/auth/AuthServiceTest.kt`
+});
+```
+
+## **Quality Assurance Integration**
+
+### **Bug Tracking**
+```typescript
+// ✅ DO: Create detailed bug reports
+await mcp_dart_create_task({
+  title: "Memory leak in Agent message processing",
+  description: "Agent executor shows increasing memory usage during extended conversations",
+  dartboard: "AeroCode/AeroCode",
+  priority: "high",
+  tags: ["Bug", "Agent-Tools", "Performance", "Critical-Blocker"],
+  type: "Task",
+  assignee: "Gary Brown",
+  customProperties: {
+    "Severity": "High",
+    "Environment": "Development", 
+    "Reproduction Steps": "1. Start agent conversation\n2. Send 100+ messages\n3. Monitor memory usage"
+  }
+});
+```
+
+### **Testing Task Management**
+```typescript
+// ✅ DO: Track testing progress
+await mcp_dart_create_task({
+  title: "Integration Test Suite for Agent Routing",
+  dartboard: "AeroCode/AeroCode",
+  tags: ["Testing", "Integration-Testing", "Agent-Routing"],
+  size: "medium",
+  description: "Comprehensive test coverage for agent message routing logic"
+});
+
+// Add detailed test tracking
+await mcp_dart_add_task_comment({
+  taskId: "testTaskId",
+  text: `## Test Progress
+- ✅ Unit tests for MessageRouter.kt
+- ✅ Integration tests for agent selection
+- 🔄 End-to-end conversation flow tests  
+- ⏳ Performance tests under load
+- ⏳ Error handling edge cases
+
+**Coverage**: 85% (target: 90%)`
+});
+```
+
+## **Anti-Patterns to Avoid**
+
+```typescript
+// ❌ DON'T: Create tasks without proper categorization
+await mcp_dart_create_task({
+  title: "Fix stuff", // Too vague
+  description: "Things are broken", // No actionable detail
+  // Missing: dartboard, tags, priority, assignee
+});
+
+// ❌ DON'T: Duplicate task management across tools
+// If using Dart, don't also maintain separate task lists in GitHub Issues, etc.
+
+// ❌ DON'T: Ignore task relationships
+// Always link related tasks through comments or shared tags
+
+// ❌ DON'T: Let tasks go stale
+// Regularly update status and add progress comments
+```
+
+## **Advanced Patterns**
+
+### **Epic/Feature Tracking**
+```typescript
+// ✅ DO: Use parent tasks for epics
+const epic = await mcp_dart_create_task({
+  title: "User Management System v2.0",
+  description: "Complete overhaul of user management with new features",
+  dartboard: "AeroCode/AeroCode",
+  type: "Project", // Use Project type for epics
+  priority: "high",
+  tags: ["Major-Refactor", "Feature", "Architecture"],
+  size: "xl"
+});
+
+// Create related sub-tasks with references
+await mcp_dart_create_task({
+  title: "Database Schema Migration",
+  description: "Update user table schema for v2.0 features",
+  dartboard: "AeroCode/AeroCode", 
+  tags: ["Database", "Migration", "User-Management"],
+  parentId: epic.id // If supported, or reference in comments
+});
+```
+
+### **Release Management**
+```typescript
+// ✅ DO: Track releases through Dart
+await mcp_dart_create_task({
+  title: "Release 2.1.0 - Agent Performance Improvements", 
+  dartboard: "AeroCode/AeroCode",
+  type: "Milestone",
+  dueAt: "2025-07-15T09:00:00Z",
+  tags: ["Release-Train", "Agent-Performance", "Milestone"],
+  description: "Release tracking for v2.1.0 with focus on agent execution performance"
+});
+```
+
+## **Integration with Memory Bank**
+
+```typescript
+// ✅ DO: Sync important decisions to memory bank
+// After creating significant architecture tasks, update memory bank
+await mcp_dart_add_task_comment({
+  taskId: "architectureTaskId",
+  text: "Architecture decisions documented in memory-bank/systemPatterns.md. Key patterns established for agent coordination and message routing."
+});
+```
+
+## **Quick Reference Commands**
+
+```typescript
+// Get workspace overview
+const config = await mcp_dart_get_config();
+
+// Current work items
+const myWork = await mcp_dart_list_tasks({ assignee: "Gary Brown", status: "Doing" });
+
+// Create feature task
+await mcp_dart_create_task({
+  title: "Task Title",
+  dartboard: "AeroCode/AeroCode", 
+  priority: "medium",
+  tags: ["Feature"],
+  assignee: "Gary Brown"
+});
+
+// Update progress
+await mcp_dart_update_task({ id: "taskId", status: "Done" });
+
+// Add progress note
+await mcp_dart_add_task_comment({ taskId: "taskId", text: "Progress update..." });
+```
+
+This integration enables seamless project management directly within Cursor, maintaining development context while providing comprehensive task and documentation tracking.

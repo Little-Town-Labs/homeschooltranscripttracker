@@ -38,8 +38,9 @@ export function StudentTestScoresPage({ studentId }: StudentTestScoresPageProps)
     setShowForm(true);
   };
 
-  const handleDelete = async (scoreId: string, testType: string, score: number) => {
-    if (window.confirm(`Are you sure you want to delete this ${testType} score of ${score}?`)) {
+  const handleDelete = async (scoreId: string, testType: string, scores: any) => {
+    const displayScore = typeof scores === 'object' && scores ? scores.total || 'N/A' : 'N/A';
+    if (window.confirm(`Are you sure you want to delete this ${testType} score of ${displayScore}?`)) {
       await deleteTestScore.mutateAsync({ id: scoreId });
     }
   };
@@ -158,16 +159,16 @@ export function StudentTestScoresPage({ studentId }: StudentTestScoresPageProps)
               {bestScores.map((score) => (
                 <div key={score.id} className="text-center p-4 bg-gray-50 rounded-lg">
                   <div className="text-2xl font-bold text-indigo-600">
-                    {score.score}
-                    {score.maxScore && ` / ${score.maxScore}`}
+                    {typeof score.scores === 'object' && score.scores ? 
+                      (score.scores as any).total || 'N/A' : 'N/A'}
                   </div>
                   <div className="text-sm font-medium text-gray-900">{score.testType}</div>
                   <div className="text-xs text-gray-500">
                     {new Date(score.testDate).toLocaleDateString()}
                   </div>
-                  {score.percentile && (
+                  {typeof score.scores === 'object' && score.scores && (score.scores as any).percentile && (
                     <div className="text-xs text-gray-600">
-                      {score.percentile}th percentile
+                      {(score.scores as any).percentile}th percentile
                     </div>
                   )}
                 </div>
@@ -213,19 +214,19 @@ export function StudentTestScoresPage({ studentId }: StudentTestScoresPageProps)
                                 </td>
                                 <td className="py-3 px-4">
                                   <span className="font-semibold text-gray-900">
-                                    {score.score}
-                                    {score.maxScore && (
-                                      <span className="text-gray-500"> / {score.maxScore}</span>
+                                    {typeof score.scores === 'object' && score.scores ? (score.scores as any).total || 'N/A' : 'N/A'}
+                                    {typeof score.scores === 'object' && score.scores && (score.scores as any).maxScore && (
+                                      <span className="text-gray-500"> / {(score.scores as any).maxScore}</span>
                                     )}
                                   </span>
                                 </td>
                                 <td className="py-3 px-4 text-gray-600">
-                                  {score.percentile ? `${score.percentile}%` : "—"}
+                                  {typeof score.scores === 'object' && score.scores && (score.scores as any).percentile ? `${(score.scores as any).percentile}%` : "—"}
                                 </td>
                                 <td className="py-3 px-4 text-gray-600">
-                                  {score.subscores && Object.keys(score.subscores).length > 0 ? (
+                                  {typeof score.scores === 'object' && score.scores && Object.keys(score.scores as object).filter(key => !['total', 'maxScore', 'percentile'].includes(key)).length > 0 ? (
                                     <div className="space-y-1">
-                                      {Object.entries(score.subscores as Record<string, number>).map(([section, subscore]) => (
+                                      {Object.entries(score.scores as object).filter(([key]) => !['total', 'maxScore', 'percentile'].includes(key)).map(([section, subscore]) => (
                                         <div key={section} className="text-xs">
                                           {section}: {String(subscore)}
                                         </div>
@@ -253,7 +254,7 @@ export function StudentTestScoresPage({ studentId }: StudentTestScoresPageProps)
                                       Edit
                                     </button>
                                     <button
-                                      onClick={() => handleDelete(score.id, score.testType, Number(score.score))}
+                                      onClick={() => handleDelete(score.id, score.testType, score.scores)}
                                       className="text-red-600 hover:text-red-800 text-sm"
                                       disabled={deleteTestScore.isPending}
                                     >

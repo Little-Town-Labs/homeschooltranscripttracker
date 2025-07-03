@@ -40,7 +40,7 @@ const GradeCalculator: React.FC<GradeCalculatorProps> = ({ onGpaCalculated }) =>
           value={currentGrade.letter}
           onChange={(e) => setCurrentGrade({
             ...currentGrade, 
-            letter: e.target.value as 'A' | 'B' | 'C' | 'D' | 'F'
+            letter: e.target.value as typeof currentGrade.letter
           })}
           data-testid="letter-select"
         >

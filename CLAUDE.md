@@ -2,6 +2,22 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ IMPORTANT: Follow Project Rules
+Before making any changes, **ALWAYS** consult the comprehensive development guidelines in `.cursor/rules/`. Key rules include:
+
+- **`.cursor/rules/core.mdc`** - Core workflow rules (Plan/Act mode system)
+- **`.cursor/rules/typescript.mdc`** - TypeScript standards and best practices  
+- **`.cursor/rules/trpc.mdc`** - tRPC integration patterns with React Query
+- **`.cursor/rules/neon-drizzle.mdc`** - Database integration guidelines
+- **`.cursor/rules/codequality.mdc`** - Code quality standards
+- **Additional files**: See `.cursor/rules/` for testing, Git workflow, and other guidelines
+
+## Mode System
+This project follows a **Plan/Act mode system** (see `.cursor/rules/core.mdc`):
+- **Plan Mode**: Analyze, gather information, create implementation plans (default)
+- **Act Mode**: Execute changes based on approved plans
+- Always start in Plan Mode unless explicitly asked to Act
+
 ## Project Overview
 **Homeschool Transcript Tracker** - A SaaS platform for homeschool families to track high school academic records (grades 9-12) and generate professional transcripts for college applications.
 

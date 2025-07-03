@@ -12,12 +12,11 @@ interface CourseFormProps {
 export function CourseForm({ courseId, preselectedStudentId, onClose }: CourseFormProps) {
   const [formData, setFormData] = useState({
     studentId: preselectedStudentId ?? "",
-    courseName: "",
-    subject: "",
+    name: "",
+    subject: "" as "English" | "Mathematics" | "Science" | "Social Studies" | "Foreign Language" | "Fine Arts" | "Physical Education" | "Career/Technical Education" | "Elective" | "Other" | "",
     level: "Regular" as "Regular" | "Honors" | "Advanced Placement",
-    credits: 1,
+    creditHours: 1,
     academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
-    semester: "",
     description: "",
   });
 
@@ -49,12 +48,11 @@ export function CourseForm({ courseId, preselectedStudentId, onClose }: CourseFo
     if (course) {
       setFormData({
         studentId: course.studentId,
-        courseName: String(course.courseName),
-        subject: String(course.subject),
+        name: String(course.name),
+        subject: course.subject,
         level: course.level as "Regular" | "Honors" | "Advanced Placement",
-        credits: Number(course.credits),
+        creditHours: Number(course.creditHours),
         academicYear: String(course.academicYear),
-        semester: String(course.semester ?? ""),
         description: String(course.description ?? ""),
       });
     }
@@ -74,14 +72,21 @@ export function CourseForm({ courseId, preselectedStudentId, onClose }: CourseFo
       if (isEditing) {
         await updateCourse.mutateAsync({
           id: courseId,
-          ...formData,
-          semester: formData.semester || undefined,
+          courseName: formData.name,
+          subject: formData.subject as any,
+          level: formData.level,
+          credits: formData.creditHours,
+          academicYear: formData.academicYear,
           description: formData.description || undefined,
         });
       } else {
         await createCourse.mutateAsync({
-          ...formData,
-          semester: formData.semester || undefined,
+          courseName: formData.name,
+          subject: formData.subject as any,
+          level: formData.level,
+          credits: formData.creditHours,
+          studentId: formData.studentId,
+          academicYear: formData.academicYear,
           description: formData.description || undefined,
         });
       }
@@ -171,8 +176,8 @@ export function CourseForm({ courseId, preselectedStudentId, onClose }: CourseFo
               required
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="e.g., Algebra I, American History, Biology"
-              value={formData.courseName}
-              onChange={(e) => handleInputChange("courseName", e.target.value)}
+              value={formData.name}
+              onChange={(e) => handleInputChange("name", e.target.value)}
             />
           </div>
 
@@ -234,27 +239,11 @@ export function CourseForm({ courseId, preselectedStudentId, onClose }: CourseFo
                 max="10"
                 step="0.5"
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                value={formData.credits}
-                onChange={(e) => handleInputChange("credits", parseFloat(e.target.value))}
+                value={formData.creditHours}
+                onChange={(e) => handleInputChange("creditHours", parseFloat(e.target.value))}
               />
             </div>
 
-            <div>
-              <label htmlFor="semester" className="block text-sm font-medium text-gray-700">
-                Semester (Optional)
-              </label>
-              <select
-                id="semester"
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                value={formData.semester}
-                onChange={(e) => handleInputChange("semester", e.target.value)}
-              >
-                <option value="">Full Year</option>
-                <option value="Fall">Fall Semester</option>
-                <option value="Spring">Spring Semester</option>
-                <option value="Summer">Summer Session</option>
-              </select>
-            </div>
           </div>
 
           <div>

@@ -1,0 +1,251 @@
+---
+description: Browser automation testing with Playwright MCP tools, especially for React/Vite applications requiring authentication flow testing, subscription integration testing, and PayPal sandbox interactions. Helpful when encountering browser cache issues, empty snapshots, timing conflicts with development servers, or need guidance on proper test isolation and error handling patterns.
+globs: 
+alwaysApply: false
+---
+# Playwright Testing Best Practices
+
+## **Browser State Management**
+
+- **Fresh Browser Context**: Always start tests with clean browser context
+  ```typescript
+  // ✅ DO: Create new context for each test
+  test.beforeEach(async ({ browser }) => {
+    const context = await browser.newContext({
+      viewport: { width: 1280, height: 720 },
+      ignoreHTTPSErrors: true
+    });
+    page = await context.newPage();
+  });
+  
+  // ❌ DON'T: Reuse browser context between tests
+  ```
+
+- **Cache Clearing**: Clear browser cache and data between test runs
+  ```typescript
+  // ✅ DO: Clear cache before critical tests
+  await context.clearCookies();
+  await context.clearPermissions();
+  ```
+
+## **React/Vite Application Testing**
+
+- **Wait for React Hydration**: Ensure React components are fully mounted
+  ```typescript
+  // ✅ DO: Wait for specific React elements to appear
+  await page.waitForSelector('[data-testid="app-loaded"]', { 
+    state: 'visible',
+    timeout: 10000 
+  });
+  
+  // ✅ DO: Wait for network idle after navigation
+  await page.goto(url, { waitUntil: 'networkidle' });
+  ```
+
+- **Handle Vite HMR Conflicts**: Account for development server behavior
+  ```typescript
+  // ✅ DO: Add delays for Vite development environment
+  if (process.env.NODE_ENV === 'development') {
+    await page.waitForTimeout(2000); // Allow HMR to settle
+  }
+  ```
+
+## **MCP Playwright Tools Integration**
+
+- **Proper Snapshot Usage**: Use snapshots for verification, not navigation
+  ```typescript
+  // ✅ DO: Take snapshots after ensuring content is loaded
+  await page.waitForLoadState('domcontentloaded');
+  await page.waitForTimeout(1000);
+  const snapshot = await page.accessibility.snapshot();
+  
+  // ❌ DON'T: Rely on snapshots immediately after navigation
+  ```
+
+- **Browser Tool Error Handling**: Handle MCP tool failures gracefully
+  ```typescript
+  // ✅ DO: Implement retry logic for MCP tools
+  async function takeSnapshotWithRetry(maxRetries = 3) {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await mcp_playwright_browser_snapshot();
+      } catch (error) {
+        if (i === maxRetries - 1) throw error;
+        await page.waitForTimeout(1000);
+      }
+    }
+  }
+  ```
+
+## **Authentication Testing Patterns**
+
+- **Test User Management**: Maintain clean test user state
+  ```typescript
+  // ✅ DO: Create fresh test users for each test suite
+  test.beforeAll(async () => {
+    await createTestUsers();
+  });
+  
+  test.afterAll(async () => {
+    await cleanupTestUsers();
+  });
+  ```
+
+- **Session Management**: Handle authentication state properly
+  ```typescript
+  // ✅ DO: Clear session data between tests
+  test.beforeEach(async ({ page }) => {
+    await page.context().clearCookies();
+    await page.evaluate(() => localStorage.clear());
+  });
+  ```
+
+## **Database Integration Testing**
+
+- **Supabase MCP Integration**: Use database tools for verification
+  ```typescript
+  // ✅ DO: Verify database state after UI actions
+  async function verifySubscriptionCreated(userId: string) {
+    const result = await mcp_Supabase_postgrestRequest({
+      method: 'GET',
+      path: `/subscriptions?user_id=eq.${userId}`
+    });
+    expect(result.data).toHaveLength(1);
+  }
+  ```
+
+## **PayPal Sandbox Testing**
+
+- **Sandbox Environment**: Always use sandbox for automated tests
+  ```typescript
+  // ✅ DO: Verify sandbox environment
+  test.beforeAll(() => {
+    expect(process.env.VITE_PAYPAL_CLIENT_ID).toContain('sandbox');
+  });
+  ```
+
+- **PayPal Button Interaction**: Handle PayPal popup windows
+  ```typescript
+  // ✅ DO: Handle PayPal checkout popup
+  const [popup] = await Promise.all([
+    page.waitForEvent('popup'),
+    page.click('[data-testid="paypal-button"]')
+  ]);
+  await popup.waitForLoadState('networkidle');
+  ```
+
+## **Error Handling & Debugging**
+
+- **Console Monitoring**: Capture and analyze console messages
+  ```typescript
+  // ✅ DO: Monitor console for errors
+  page.on('console', msg => {
+    if (msg.type() === 'error') {
+      console.error('Browser console error:', msg.text());
+    }
+  });
+  ```
+
+- **Screenshot on Failure**: Capture evidence of failures
+  ```typescript
+  // ✅ DO: Take screenshots on test failure
+  test.afterEach(async ({ page }, testInfo) => {
+    if (testInfo.status !== testInfo.expectedStatus) {
+      await page.screenshot({ 
+        path: `test-results/failure-${testInfo.title}-${Date.now()}.png` 
+      });
+    }
+  });
+  ```
+
+## **Performance Considerations**
+
+- **Selective Testing**: Don't automate everything
+  ```typescript
+  // ✅ DO: Focus automation on critical paths
+  test.describe('Critical Subscription Flow', () => {
+    // Automate core business functionality
+  });
+  
+  // ✅ DO: Use manual testing for edge cases
+  test.describe.skip('Edge Cases - Manual Testing Required', () => {
+    // Document manual test procedures
+  });
+  ```
+
+- **Parallel Execution**: Configure safe parallel testing
+  ```typescript
+  // ✅ DO: Configure workers for stable tests
+  export default defineConfig({
+    workers: process.env.CI ? 1 : 2, // Reduce parallelism
+    retries: process.env.CI ? 2 : 0,
+  });
+  ```
+
+## **Browser Hanging Prevention**
+
+- **Timeouts**: Set appropriate timeouts for all operations
+  ```typescript
+  // ✅ DO: Set reasonable timeouts
+  test.setTimeout(60000); // 1 minute max per test
+  
+  // ✅ DO: Use specific wait conditions
+  await page.waitForFunction(
+    () => document.readyState === 'complete',
+    { timeout: 10000 }
+  );
+  ```
+
+- **Browser Restart**: Implement browser restart on hang detection
+  ```typescript
+  // ✅ DO: Restart browser on consecutive failures
+  let consecutiveFailures = 0;
+  
+  test.afterEach(async ({ browser }, testInfo) => {
+    if (testInfo.status === 'failed') {
+      consecutiveFailures++;
+      if (consecutiveFailures >= 3) {
+        await browser.close();
+        consecutiveFailures = 0;
+      }
+    } else {
+      consecutiveFailures = 0;
+    }
+  });
+  ```
+
+## **Test Data Management**
+
+- **Deterministic Test Data**: Use predictable test scenarios
+  ```typescript
+  // ✅ DO: Use consistent test data
+  const TEST_PLANS = {
+    basic: { id: 'basic-monthly', price: 9.99 },
+    premium: { id: 'premium-monthly', price: 19.99 }
+  };
+  ```
+
+- **Test Isolation**: Ensure tests don't interfere with each other
+  ```typescript
+  // ✅ DO: Use unique identifiers for test data
+  const testId = `test-${Date.now()}-${Math.random()}`;
+  ```
+
+## **Documentation Requirements**
+
+- **Test Coverage Documentation**: Document what is and isn't automated
+- **Manual Test Procedures**: Provide clear manual testing guides
+- **Troubleshooting Guides**: Document common issues and solutions
+- **Environment Setup**: Document test environment requirements
+
+## **Common Pitfalls to Avoid**
+
+- ❌ **DON'T**: Rely solely on element visibility for timing
+- ❌ **DON'T**: Use fixed delays (sleep) instead of proper waits
+- ❌ **DON'T**: Ignore browser console errors during tests
+- ❌ **DON'T**: Test in production environment
+- ❌ **DON'T**: Share test data between parallel test runs
+- ❌ **DON'T**: Assume browser state is clean between tests
+
+- playwright-testing: Playwright browser automation best practices for testing React/Vite applications with MCP tools integration
+

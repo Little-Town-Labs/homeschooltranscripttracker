@@ -175,11 +175,11 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
                       </thead>
                       <tbody>
                         {yearCourses
-                          .sort((a, b) => a.course.courseName.localeCompare(b.course.courseName))
+                          .sort((a, b) => a.course.name.localeCompare(b.course.name))
                           .map((item) => (
                             <tr key={item.course.id}>
                               <td className="border border-gray-300 px-3 py-2">
-                                {item.course.courseName}
+                                {item.course.name}
                                 {item.course.subject && (
                                   <div className="text-xs text-gray-500">({item.course.subject})</div>
                                 )}
@@ -188,13 +188,13 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
                                 {item.course.level}
                               </td>
                               <td className="border border-gray-300 px-3 py-2 text-center">
-                                {item.course.credits}
+                                {item.course.creditHours}
                               </td>
                               <td className="border border-gray-300 px-3 py-2 text-center font-medium">
-                                {item.grade?.letterGrade || "IP"}
+                                {item.grade?.grade || "IP"}
                               </td>
                               <td className="border border-gray-300 px-3 py-2 text-center">
-                                {item.grade ? (Number(item.grade.gradePoints) * Number(item.course.credits)).toFixed(1) : "—"}
+                                {item.grade ? (Number(item.grade.gpaPoints) * Number(item.course.creditHours)).toFixed(1) : "—"}
                               </td>
                             </tr>
                           ))}
@@ -212,23 +212,26 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
                 Standardized Test Scores
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {testScores.map((score) => (
-                  <div key={score.id} className="border border-gray-300 p-3 rounded">
-                    <div className="font-semibold text-gray-900">{score.testType}</div>
-                    <div className="text-lg font-bold text-indigo-600">
-                      {score.score}
-                      {score.maxScore && ` / ${score.maxScore}`}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {new Date(score.testDate).toLocaleDateString()}
-                    </div>
-                    {score.percentile && (
-                      <div className="text-sm text-gray-500">
-                        {score.percentile}th percentile
+                {testScores.map((score) => {
+                  const scores = typeof score.scores === 'object' && score.scores ? score.scores as any : {};
+                  return (
+                    <div key={score.id} className="border border-gray-300 p-3 rounded">
+                      <div className="font-semibold text-gray-900">{score.testType}</div>
+                      <div className="text-lg font-bold text-indigo-600">
+                        {scores.total || 'N/A'}
+                        {scores.maxScore && ` / ${scores.maxScore}`}
                       </div>
-                    )}
-                  </div>
-                ))}
+                      <div className="text-sm text-gray-600">
+                        {new Date(score.testDate).toLocaleDateString()}
+                      </div>
+                      {scores.percentile && (
+                        <div className="text-sm text-gray-500">
+                          {scores.percentile}th percentile
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

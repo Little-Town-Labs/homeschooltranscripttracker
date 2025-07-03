@@ -151,7 +151,7 @@ export function CoursesPage() {
                         <div key={course.id} className="border border-gray-200 rounded-lg p-4">
                           <div className="flex justify-between items-start mb-3">
                             <div className="flex-1">
-                              <h3 className="font-semibold text-gray-900">{course.courseName}</h3>
+                              <h3 className="font-semibold text-gray-900">{course.name}</h3>
                               <p className="text-sm text-gray-600">{course.subject}</p>
                               <p className="text-sm text-gray-500">
                                 {getStudentName(course.studentId)}
@@ -171,12 +171,12 @@ export function CoursesPage() {
                           <div className="space-y-1 mb-3">
                             <div className="flex justify-between text-sm">
                               <span className="text-gray-500">Credits:</span>
-                              <span className="text-gray-900">{course.credits}</span>
+                              <span className="text-gray-900">{course.creditHours}</span>
                             </div>
-                            {course.semester && (
+                            {course.academicYear && (
                               <div className="flex justify-between text-sm">
                                 <span className="text-gray-500">Semester:</span>
-                                <span className="text-gray-900">{course.semester}</span>
+                                <span className="text-gray-900">{course.academicYear}</span>
                               </div>
                             )}
                           </div>
@@ -195,7 +195,7 @@ export function CoursesPage() {
                               Edit
                             </button>
                             <button
-                              onClick={() => handleDelete(course.id, String(course.courseName))}
+                              onClick={() => handleDelete(course.id, String(course.name))}
                               className="flex-1 bg-red-100 text-red-700 py-2 px-3 rounded text-sm hover:bg-red-200 transition-colors"
                               disabled={deleteCourse.isPending}
                             >

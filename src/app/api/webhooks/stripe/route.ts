@@ -9,7 +9,7 @@ import { eq } from "drizzle-orm";
 let stripe: Stripe;
 if (process.env.STRIPE_SECRET_KEY) {
   stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: "2024-06-20",
+    apiVersion: "2025-05-28.basil",
   });
 } else {
   console.log("Stripe webhook handler - missing STRIPE_SECRET_KEY");
@@ -20,7 +20,7 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
-  const headersList = headers();
+  const headersList = await headers();
   const sig = headersList.get("stripe-signature")!;
 
   let event: Stripe.Event;
@@ -43,8 +43,8 @@ export async function POST(req: NextRequest) {
           await db
             .update(tenants)
             .set({
-              stripeSubscriptionId: subscription.id,
-              subscriptionStatus: subscription.status,
+              subscriptionId: subscription.id,
+              subscriptionStatus: subscription.status as "trial" | "active" | "past_due" | "cancelled" | "suspended",
               // Clear trial if subscription becomes active
               trialEndsAt: subscription.status === "active" ? null : undefined,
             })
@@ -60,8 +60,8 @@ export async function POST(req: NextRequest) {
           await db
             .update(tenants)
             .set({
-              stripeSubscriptionId: null,
-              subscriptionStatus: "canceled",
+              subscriptionId: null,
+              subscriptionStatus: "cancelled",
             })
             .where(eq(tenants.id, deletedTenantId));
         }

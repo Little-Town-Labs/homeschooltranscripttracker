@@ -8,9 +8,7 @@ import {
 } from "@/server/api/trpc";
 import { 
   tenants, 
-  students,
-  subscriptions,
-  invoices 
+  students
 } from "@/server/db/schema";
 
 // Initialize Stripe with build-time safety
@@ -18,7 +16,7 @@ let stripe: Stripe;
 try {
   if (process.env.STRIPE_SECRET_KEY) {
     stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2024-06-20",
+      apiVersion: "2025-05-28.basil",
     });
   } else {
     console.log("Stripe not initialized - missing STRIPE_SECRET_KEY");
@@ -49,15 +47,15 @@ export const billingRouter = createTRPCRouter({
     const activeStudents = await ctx.db
       .select()
       .from(students)
-      .where(and(eq(students.tenantId, ctx.tenantId), eq(students.isActive, true)));
+      .where(eq(students.tenantId, ctx.tenantId));
 
     const studentCount = activeStudents.length;
 
     // Get current subscription
     let subscription = null;
-    if (currentTenant.stripeSubscriptionId) {
+    if (currentTenant.subscriptionId) {
       try {
-        subscription = await stripe.subscriptions.retrieve(currentTenant.stripeSubscriptionId);
+        subscription = await stripe.subscriptions.retrieve(currentTenant.subscriptionId);
       } catch (error) {
         console.error("Failed to retrieve Stripe subscription:", error);
       }
@@ -91,16 +89,16 @@ export const billingRouter = createTRPCRouter({
         id: currentTenant.id,
         name: currentTenant.name,
         email: currentTenant.primaryEmail,
-        stripeCustomerId: currentTenant.stripeCustomerId,
+        customerId: currentTenant.customerId,
         trialEndsAt: currentTenant.trialEndsAt,
       },
       subscription: subscription ? {
         id: subscription.id,
         status: subscription.status,
-        currentPeriodStart: new Date(subscription.current_period_start * 1000),
-        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-        cancelAtPeriodEnd: subscription.cancel_at_period_end,
-        items: subscription.items.data,
+        currentPeriodStart: new Date((subscription as any).current_period_start * 1000),
+        currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
+        cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
+        items: (subscription as any).items?.data || [],
       } : null,
       trial: {
         isActive: isInTrial,
@@ -154,7 +152,7 @@ export const billingRouter = createTRPCRouter({
       const currentTenant = tenant[0];
 
       // Create or get Stripe customer
-      let customerId = currentTenant.stripeCustomerId;
+      let customerId = currentTenant.customerId;
       if (!customerId) {
         const customer = await stripe.customers.create({
           email: currentTenant.primaryEmail,
@@ -169,7 +167,7 @@ export const billingRouter = createTRPCRouter({
         // Update tenant with customer ID
         await ctx.db
           .update(tenants)
-          .set({ stripeCustomerId: customerId })
+          .set({ customerId: customerId })
           .where(eq(tenants.id, ctx.tenantId));
       }
 
@@ -198,9 +196,6 @@ export const billingRouter = createTRPCRouter({
         },
         product_data: {
           name: `Homeschool Transcript Tracker - ${input.studentCount} Student${input.studentCount > 1 ? 's' : ''}`,
-          description: `Professional transcript tracking for ${input.studentCount} student${input.studentCount > 1 ? 's' : ''} ${
-            discountPercentage > 0 ? `(${discountPercentage}% family discount applied)` : ''
-          }`,
         },
         metadata: {
           tenantId: ctx.tenantId,
@@ -255,11 +250,11 @@ export const billingRouter = createTRPCRouter({
         .where(eq(tenants.id, ctx.tenantId))
         .limit(1);
 
-      if (!tenant[0]?.stripeSubscriptionId) {
+      if (!tenant[0]?.subscriptionId) {
         throw new Error("No active subscription found");
       }
 
-      const subscriptionId = tenant[0].stripeSubscriptionId;
+      const subscriptionId = tenant[0].subscriptionId;
 
       switch (input.action) {
         case "cancel":
@@ -316,9 +311,6 @@ export const billingRouter = createTRPCRouter({
             },
             product_data: {
               name: `Homeschool Transcript Tracker - ${input.studentCount} Student${input.studentCount > 1 ? 's' : ''}`,
-              description: `Professional transcript tracking for ${input.studentCount} student${input.studentCount > 1 ? 's' : ''} ${
-                discountPercentage > 0 ? `(${discountPercentage}% family discount applied)` : ''
-              }`,
             },
             metadata: {
               tenantId: ctx.tenantId,
@@ -346,19 +338,19 @@ export const billingRouter = createTRPCRouter({
       .where(eq(tenants.id, ctx.tenantId))
       .limit(1);
 
-    if (!tenant[0]?.stripeCustomerId) {
+    if (!tenant[0]?.customerId) {
       return { invoices: [], paymentMethods: [] };
     }
 
     // Get invoices from Stripe
     const invoices = await stripe.invoices.list({
-      customer: tenant[0].stripeCustomerId,
+      customer: tenant[0].customerId,
       limit: 12, // Last 12 invoices
     });
 
     // Get payment methods
     const paymentMethods = await stripe.paymentMethods.list({
-      customer: tenant[0].stripeCustomerId,
+      customer: tenant[0].customerId,
       type: "card",
     });
 
@@ -394,12 +386,12 @@ export const billingRouter = createTRPCRouter({
       .where(eq(tenants.id, ctx.tenantId))
       .limit(1);
 
-    if (!tenant[0]?.stripeCustomerId) {
+    if (!tenant[0]?.customerId) {
       throw new Error("No Stripe customer found");
     }
 
     const session = await stripe.billingPortal.sessions.create({
-      customer: tenant[0].stripeCustomerId,
+      customer: tenant[0].customerId,
       return_url: `${process.env.NEXTAUTH_URL}/billing`,
     });
 
@@ -426,7 +418,7 @@ export const billingRouter = createTRPCRouter({
             await ctx.db
               .update(tenants)
               .set({
-                stripeSubscriptionId: subscription.id,
+                subscriptionId: subscription.id,
                 subscriptionStatus: subscription.status,
                 trialEndsAt: subscription.status === "active" ? null : undefined,
               })
@@ -442,8 +434,8 @@ export const billingRouter = createTRPCRouter({
             await ctx.db
               .update(tenants)
               .set({
-                stripeSubscriptionId: null,
-                subscriptionStatus: "canceled",
+                subscriptionId: null,
+                subscriptionStatus: "cancelled",
               })
               .where(eq(tenants.id, deletedTenantId));
           }

@@ -12,7 +12,10 @@
       "Bash(ls:*)",
       "Bash(npm run:*)",
       "Bash(psql:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(rg:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }

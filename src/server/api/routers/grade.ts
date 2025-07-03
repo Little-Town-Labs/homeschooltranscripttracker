@@ -5,7 +5,8 @@ import {
   createTRPCRouter,
   guardianProcedure,
 } from "@/server/api/trpc";
-import { grades, courses, students, gradeEnum, type Grade } from "@/server/db/schema";
+import { grades, courses, students, gradeEnum } from "@/server/db/schema";
+import type { Grade, NewGrade, GradeValue, GpaCalculation } from "@/types/core/domain-types";
 
 export const gradeRouter = createTRPCRouter({
   // Get all grades for a specific student
@@ -21,11 +22,11 @@ export const gradeRouter = createTRPCRouter({
         .innerJoin(courses, eq(grades.courseId, courses.id))
         .where(
           and(
-            eq(grades.tenantId, ctx.tenantId),
+            eq(courses.tenantId, ctx.tenantId),
             eq(courses.studentId, input.studentId)
           )
         )
-        .orderBy(courses.academicYear, courses.courseName);
+        .orderBy(courses.academicYear, courses.name);
     }),
 
   // Get all grades for a specific course
@@ -35,9 +36,10 @@ export const gradeRouter = createTRPCRouter({
       return ctx.db
         .select()
         .from(grades)
+        .innerJoin(courses, eq(grades.courseId, courses.id))
         .where(
           and(
-            eq(grades.tenantId, ctx.tenantId),
+            eq(courses.tenantId, ctx.tenantId),
             eq(grades.courseId, input.courseId)
           )
         );
@@ -49,7 +51,7 @@ export const gradeRouter = createTRPCRouter({
       z.object({
         courseId: z.string().uuid(),
         letterGrade: z.enum(gradeEnum.enumValues),
-        gradePoints: z.number().min(0).max(5),
+        gpaPoints: z.number().min(0).max(5),
         semester: z.string().optional(),
         notes: z.string().optional(),
       })
@@ -57,13 +59,20 @@ export const gradeRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       // Check if grade already exists
       const existingGrade = await ctx.db
-        .select()
+        .select({
+          id: grades.id,
+          courseId: grades.courseId,
+          semester: grades.semester,
+          grade: grades.grade,
+          gpaPoints: grades.gpaPoints,
+        })
         .from(grades)
+        .innerJoin(courses, eq(grades.courseId, courses.id))
         .where(
           and(
-            eq(grades.tenantId, ctx.tenantId),
+            eq(courses.tenantId, ctx.tenantId),
             eq(grades.courseId, input.courseId),
-            input.semester ? eq(grades.semester, input.semester) : sql`semester IS NULL`
+            input.semester ? eq(grades.semester, input.semester) : eq(grades.semester, "Full Year")
           )
         )
         .limit(1);
@@ -73,9 +82,8 @@ export const gradeRouter = createTRPCRouter({
         const [updatedGrade] = await ctx.db
           .update(grades)
           .set({
-            letterGrade: input.letterGrade,
-            gradePoints: input.gradePoints,
-            notes: input.notes,
+            grade: input.letterGrade,
+            gpaPoints: String(input.gpaPoints),
           })
           .where(eq(grades.id, existingGrade[0].id))
           .returning();
@@ -86,8 +94,12 @@ export const gradeRouter = createTRPCRouter({
         const [newGrade] = await ctx.db
           .insert(grades)
           .values({
-            ...input,
-            tenantId: ctx.tenantId,
+            courseId: input.courseId,
+            semester: input.semester || "Full Year",
+            grade: input.letterGrade,
+            gpaPoints: String(input.gpaPoints),
+            percentage: null,
+            createdBy: ctx.session?.user?.id || null,
           })
           .returning();
 
@@ -99,9 +111,21 @@ export const gradeRouter = createTRPCRouter({
   delete: guardianProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      // First verify the grade belongs to this tenant
+      const gradeToDelete = await ctx.db
+        .select()
+        .from(grades)
+        .innerJoin(courses, eq(grades.courseId, courses.id))
+        .where(and(eq(grades.id, input.id), eq(courses.tenantId, ctx.tenantId)))
+        .limit(1);
+      
+      if (!gradeToDelete[0]) {
+        throw new Error("Grade not found");
+      }
+
       const [deletedGrade] = await ctx.db
         .delete(grades)
-        .where(and(eq(grades.id, input.id), eq(grades.tenantId, ctx.tenantId)))
+        .where(eq(grades.id, input.id))
         .returning();
 
       if (!deletedGrade) {
@@ -133,7 +157,7 @@ export const gradeRouter = createTRPCRouter({
 
       // Build query conditions
       const conditions = [
-        eq(grades.tenantId, ctx.tenantId),
+        eq(courses.tenantId, ctx.tenantId),
         eq(courses.studentId, input.studentId),
       ];
 
@@ -144,8 +168,8 @@ export const gradeRouter = createTRPCRouter({
       // Get all grades with course credits
       const gradeData = await ctx.db
         .select({
-          gradePoints: grades.gradePoints,
-          credits: courses.credits,
+          gpaPoints: grades.gpaPoints,
+          credits: courses.creditHours,
         })
         .from(grades)
         .innerJoin(courses, eq(grades.courseId, courses.id))
@@ -163,7 +187,7 @@ export const gradeRouter = createTRPCRouter({
 
       // Calculate GPA
       const totalQualityPoints = gradeData.reduce(
-        (sum, grade) => sum + (Number(grade.gradePoints) * Number(grade.credits)), 
+        (sum, grade) => sum + (Number(grade.gpaPoints) * Number(grade.credits)), 
         0
       );
       const totalCredits = gradeData.reduce(
@@ -192,7 +216,7 @@ export const gradeRouter = createTRPCRouter({
         gpaScale: students.gpaScale,
       })
       .from(students)
-      .where(and(eq(students.tenantId, ctx.tenantId), eq(students.isActive, true)));
+      .where(eq(students.tenantId, ctx.tenantId));
 
     const summary = [];
 
@@ -200,14 +224,14 @@ export const gradeRouter = createTRPCRouter({
       // Get grades for this student
       const gradeData = await ctx.db
         .select({
-          gradePoints: grades.gradePoints,
-          credits: courses.credits,
+          gpaPoints: grades.gpaPoints,
+          credits: courses.creditHours,
         })
         .from(grades)
         .innerJoin(courses, eq(grades.courseId, courses.id))
         .where(
           and(
-            eq(grades.tenantId, ctx.tenantId),
+            eq(courses.tenantId, ctx.tenantId),
             eq(courses.studentId, student.id)
           )
         );
@@ -217,7 +241,7 @@ export const gradeRouter = createTRPCRouter({
 
       if (gradeData.length > 0) {
         const totalQualityPoints = gradeData.reduce(
-          (sum, grade) => sum + (Number(grade.gradePoints) * Number(grade.credits)), 
+          (sum, grade) => sum + (Number(grade.gpaPoints) * Number(grade.credits)), 
           0
         );
         totalCredits = gradeData.reduce(
@@ -251,7 +275,7 @@ export const gradeRouter = createTRPCRouter({
       const { letterGrade, gpaScale, isHonorsOrAP } = input;
       
       // Base points for 4.0 scale
-      const basePoints: Record<Grade, number> = {
+      const basePoints: Record<GradeValue, number> = {
         'A': 4.0,
         'B': 3.0,
         'C': 2.0,

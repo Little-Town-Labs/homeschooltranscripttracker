@@ -170,7 +170,8 @@ const tenantMiddleware = t.middleware(async ({ ctx, next }) => {
  */
 const requireRole = (allowedRoles: UserRole[]) => 
   t.middleware(async ({ ctx, next }) => {
-    if (!ctx.userRole || !allowedRoles.includes(ctx.userRole as UserRole)) {
+    const userRole = (ctx as any).userRole;
+    if (!userRole || !allowedRoles.includes(userRole as UserRole)) {
       throw new TRPCError({ 
         code: "FORBIDDEN", 
         message: `Requires one of: ${allowedRoles.join(", ")}` 

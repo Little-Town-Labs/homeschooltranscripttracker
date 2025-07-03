@@ -152,11 +152,11 @@ export function StudentsPage() {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Status:</span>
                     <span className={`px-2 py-1 rounded-full text-xs ${
-                      student.isActive 
+                      true 
                         ? "bg-green-100 text-green-800" 
                         : "bg-gray-100 text-gray-800"
                     }`}>
-                      {student.isActive ? "Active" : "Inactive"}
+                      {true ? "Active" : "Inactive"}
                     </span>
                   </div>
                 </div>

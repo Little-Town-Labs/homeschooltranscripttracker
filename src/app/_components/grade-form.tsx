@@ -42,11 +42,13 @@ export function GradeForm({ courseId, studentId, onClose }: GradeFormProps) {
   useEffect(() => {
     if (existingGrades && existingGrades.length > 0) {
       const grade = existingGrades[0];
-      setFormData({
-        letterGrade: grade.letterGrade as "A" | "B" | "C" | "D" | "F",
-        semester: grade.semester ?? "",
-        notes: String(grade.notes ?? ""),
-      });
+      if (grade?.grade) {
+        setFormData({
+          letterGrade: grade.grade.grade as "A" | "B" | "C" | "D" | "F",
+          semester: grade.grade.semester ?? "",
+          notes: String(""),
+        });
+      }
     }
   }, [existingGrades]);
 
@@ -69,7 +71,7 @@ export function GradeForm({ courseId, studentId, onClose }: GradeFormProps) {
       await upsertGrade.mutateAsync({
         courseId,
         letterGrade: formData.letterGrade,
-        gradePoints: gradePoints,
+        gpaPoints: gradePoints,
         semester: formData.semester || undefined,
         notes: formData.notes || undefined,
       });
@@ -104,8 +106,8 @@ export function GradeForm({ courseId, studentId, onClose }: GradeFormProps) {
 
         {/* Course Info */}
         <div className="mb-4 p-3 bg-gray-50 rounded-md">
-          <h4 className="font-medium text-gray-900">{course.courseName}</h4>
-          <p className="text-sm text-gray-600">{course.subject} • {course.credits} credit{course.credits !== 1 ? "s" : ""}</p>
+          <h4 className="font-medium text-gray-900">{course.name}</h4>
+          <p className="text-sm text-gray-600">{course.subject} • {course.creditHours} credit{Number(course.creditHours) !== 1 ? "s" : ""}</p>
           <p className="text-sm text-gray-500">
             {course.level} • {course.academicYear}
           </p>

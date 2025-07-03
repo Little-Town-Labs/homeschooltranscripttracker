@@ -6,6 +6,7 @@ import {
   guardianProcedure,
 } from "@/server/api/trpc";
 import { testScores, testTypeEnum } from "@/server/db/schema";
+import type { TestScore, NewTestScore, TestScoreData, TestType } from "@/types/core/domain-types";
 
 export const testScoreRouter = createTRPCRouter({
   // Get all test scores for a specific student
@@ -57,10 +58,12 @@ export const testScoreRouter = createTRPCRouter({
         studentId: z.string().uuid(),
         testType: z.enum(testTypeEnum.enumValues),
         testDate: z.string(), // ISO date string
-        score: z.number().int().min(0),
-        maxScore: z.number().int().min(1).optional(),
-        percentile: z.number().min(0).max(100).optional(),
-        subscores: z.record(z.string(), z.number()).optional(),
+        scores: z.object({
+          total: z.number().optional(),
+          maxScore: z.number().optional(),
+          percentile: z.number().min(0).max(100).optional(),
+        }).passthrough(), // Allow additional score fields like math, ebrw, etc.
+        testCenter: z.string().optional(),
         notes: z.string().optional(),
       })
     )
@@ -68,9 +71,13 @@ export const testScoreRouter = createTRPCRouter({
       const [newTestScore] = await ctx.db
         .insert(testScores)
         .values({
-          ...input,
-          testDate: new Date(input.testDate),
           tenantId: ctx.tenantId,
+          studentId: input.studentId,
+          testType: input.testType,
+          testDate: input.testDate,
+          scores: input.scores,
+          testCenter: input.testCenter || null,
+          notes: input.notes || null,
         })
         .returning();
 
@@ -84,25 +91,21 @@ export const testScoreRouter = createTRPCRouter({
         id: z.string().uuid(),
         testType: z.enum(testTypeEnum.enumValues).optional(),
         testDate: z.string().optional(),
-        score: z.number().int().min(0).optional(),
-        maxScore: z.number().int().min(1).optional(),
-        percentile: z.number().min(0).max(100).optional(),
-        subscores: z.record(z.string(), z.number()).optional(),
+        scores: z.object({
+          total: z.number().optional(),
+          maxScore: z.number().optional(),
+          percentile: z.number().min(0).max(100).optional(),
+        }).passthrough().optional(),
+        testCenter: z.string().optional(),
         notes: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...updateData } = input;
-      
-      // Convert date string to Date if provided
-      const processedData = {
-        ...updateData,
-        testDate: updateData.testDate ? new Date(updateData.testDate) : undefined,
-      };
 
       const [updatedTestScore] = await ctx.db
         .update(testScores)
-        .set(processedData)
+        .set(updateData)
         .where(and(eq(testScores.id, id), eq(testScores.tenantId, ctx.tenantId)))
         .returning();
 
@@ -147,7 +150,9 @@ export const testScoreRouter = createTRPCRouter({
       // Group by test type and find the highest score for each
       const bestScores = allScores.reduce((acc, score) => {
         const existing = acc.find(s => s.testType === score.testType);
-        if (!existing || score.score > existing.score) {
+        const scoreValue = typeof score.scores === 'object' && score.scores ? (score.scores as any).total || 0 : 0;
+        const existingValue = typeof existing?.scores === 'object' && existing?.scores ? (existing.scores as any).total || 0 : 0;
+        if (!existing || scoreValue > existingValue) {
           // Remove existing score of this type if found
           const filtered = acc.filter(s => s.testType !== score.testType);
           filtered.push(score);

@@ -5,7 +5,7 @@ import '@testing-library/jest-dom/vitest'
 // Global test setup
 beforeAll(() => {
   // Mock environment variables for testing
-  process.env.NODE_ENV = 'test'
+  // NODE_ENV is set by test runner
   process.env.NEXTAUTH_SECRET = 'test-secret'
   process.env.NEXTAUTH_URL = 'http://localhost:3000'
   process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test_db'

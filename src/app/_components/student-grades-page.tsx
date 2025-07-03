@@ -193,7 +193,7 @@ export function StudentGradesPage({ studentId }: StudentGradesPageProps) {
                     {gradeData.map(({ course, grade }) => (
                       <tr key={course.id} className="border-b border-gray-100">
                         <td className="py-3 px-4 font-medium text-gray-900">
-                          {course.courseName}
+                          {course.name}
                         </td>
                         <td className="py-3 px-4 text-gray-600">{course.subject}</td>
                         <td className="py-3 px-4">
@@ -207,23 +207,23 @@ export function StudentGradesPage({ studentId }: StudentGradesPageProps) {
                             {course.level}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-gray-600">{course.credits}</td>
+                        <td className="py-3 px-4 text-gray-600">{course.creditHours}</td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded font-medium text-sm ${
-                            grade.letterGrade === "A" 
+                            grade.grade === "A" 
                               ? "bg-green-100 text-green-800"
-                              : grade.letterGrade === "B"
+                              : grade.grade === "B"
                               ? "bg-blue-100 text-blue-800"
-                              : grade.letterGrade === "C"
+                              : grade.grade === "C"
                               ? "bg-yellow-100 text-yellow-800"
-                              : grade.letterGrade === "D"
+                              : grade.grade === "D"
                               ? "bg-orange-100 text-orange-800"
                               : "bg-red-100 text-red-800"
                           }`}>
-                            {grade.letterGrade}
+                            {grade.grade}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-gray-600">{grade.gradePoints}</td>
+                        <td className="py-3 px-4 text-gray-600">{grade.gpaPoints}</td>
                         <td className="py-3 px-4">
                           <button
                             onClick={() => handleAddGrade(course.id)}
@@ -255,7 +255,7 @@ export function StudentGradesPage({ studentId }: StudentGradesPageProps) {
                   <div key={course.id} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">{course.courseName}</h3>
+                        <h3 className="font-semibold text-gray-900">{course.name}</h3>
                         <p className="text-sm text-gray-600">{course.subject}</p>
                         <p className="text-sm text-gray-500">{course.academicYear}</p>
                       </div>
@@ -272,7 +272,7 @@ export function StudentGradesPage({ studentId }: StudentGradesPageProps) {
 
                     <div className="flex justify-between items-center mb-3">
                       <span className="text-sm text-gray-500">
-                        {course.credits} credit{course.credits !== 1 ? "s" : ""}
+                        {course.creditHours} credit{Number(course.creditHours) !== 1 ? "s" : ""}
                       </span>
                     </div>
 

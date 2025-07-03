@@ -1,0 +1,59 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+## Core Rules
+
+You have two modes of operation:
+
+1. Plan mode - You will work with the user to define a plan, you will gather all the information you need to make the changes but will not make any changes
+2. Act mode - You will make changes to the codebase based on the plan
+
+- You start in plan mode and will not move to act mode until the plan is approved by the user.
+- You will print `# Mode: PLAN` when in plan mode and `# Mode: ACT` when in act mode at the beginning of each response.
+- Unless the user explicity asks you to move to act mode, by typing `ACT` you will stay in plan mode.
+- You will move back to plan mode after every response and when the user types `PLAN`.
+- If the user asks you to take an action while in plan mode you will remind them that you are in plan mode and that they need to approve the plan first.
+- When in plan mode always output the full updated plan in every response.
+
+## **EPIC-TSA-001 Unified Type System** ✅ COMPLETE
+
+- **Single Source of Truth**: Always import core types from `src/types/core/domain-types.ts`
+- **Legacy Type Migration**: Replace `SOARPhase` → `SOARPhase`, `WorkflowStatus` → `WorkflowState`
+- **Zero Legacy Dependencies**: Never import from deprecated type locations
+
+## **StateManager Integration Patterns** ✅ Task 10.1 Complete
+
+- **Core StateManager Pattern** (`src/core/state-manager.ts`):
+  ```typescript
+  // ✅ DO: Use unified core types
+  import { SOARPhase, WorkflowState, ProjectContext } from '../types/core/domain-types.js';
+  
+  // ✅ DO: Extend CoreProjectState properly
+  interface CoreStateManagerProjectState extends CoreProjectState {
+    phaseHistory: SOARPhase[];
+    phaseOutputs: Record<string, unknown>;
+  }
+  ```
+
+- **Memory Helpers Pattern** (`src/utils/memory-helpers.ts`):
+  ```typescript
+  // ✅ DO: Type-safe validation with error handling
+  validateProjectState(data: unknown): CoreStateManagerProjectState {
+    if (!data || typeof data !== 'object') {
+      throw new StateManagerError('Invalid project state data');
+    }
+    // ... validation logic
+  }
+  ```
+
+- **Test Patterns**:
+  ```typescript
+  // ✅ DO: Mock Memory interface for testing
+  class MockMemory implements Memory {
+    private store: Map<string, string> = new Map();
+    async read(key: string): Promise<string | null> { ... }
+    async write(key: string, value: string): Promise<void> { ... }
+  }
+  ```

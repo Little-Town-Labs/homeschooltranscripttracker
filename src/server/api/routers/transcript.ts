@@ -49,7 +49,7 @@ export const transcriptRouter = createTRPCRouter({
         .from(courses)
         .leftJoin(grades, eq(courses.id, grades.courseId))
         .where(and(eq(courses.studentId, input.studentId), eq(courses.tenantId, ctx.tenantId)))
-        .orderBy(asc(courses.academicYear), asc(courses.courseName));
+        .orderBy(asc(courses.academicYear), asc(courses.name));
 
       // Get test scores
       const studentTestScores = await ctx.db
@@ -61,12 +61,12 @@ export const transcriptRouter = createTRPCRouter({
       // Calculate cumulative GPA
       const gpaData = await ctx.db
         .select({
-          gradePoints: grades.gradePoints,
-          credits: courses.credits,
+          gradePoints: grades.gpaPoints,
+          credits: courses.creditHours,
         })
         .from(grades)
         .innerJoin(courses, eq(grades.courseId, courses.id))
-        .where(and(eq(grades.tenantId, ctx.tenantId), eq(courses.studentId, input.studentId)));
+        .where(and(eq(courses.tenantId, ctx.tenantId), eq(courses.studentId, input.studentId)));
 
       let cumulativeGPA = 0;
       let totalCredits = 0;
@@ -100,11 +100,11 @@ export const transcriptRouter = createTRPCRouter({
         const yearGpaData = yearCourses.filter(item => item.grade);
         if (yearGpaData.length > 0) {
           const yearQualityPoints = yearGpaData.reduce(
-            (sum, item) => sum + (Number(item.grade?.gradePoints) * Number(item.course.credits)),
+            (sum, item) => sum + (Number(item.grade?.gpaPoints) * Number(item.course.creditHours)),
             0
           );
           const yearCredits = yearGpaData.reduce(
-            (sum, item) => sum + Number(item.course.credits),
+            (sum, item) => sum + Number(item.course.creditHours),
             0
           );
           gpaByYear[year] = {
@@ -117,7 +117,9 @@ export const transcriptRouter = createTRPCRouter({
       // Get best test scores per type
       const bestTestScores = studentTestScores.reduce((acc, score) => {
         const existing = acc.find(s => s.testType === score.testType);
-        if (!existing || score.score > existing.score) {
+        const scoreValue = typeof score.scores === 'object' && score.scores ? (score.scores as any).total || 0 : 0;
+        const existingValue = existing && typeof existing.scores === 'object' && existing.scores ? (existing.scores as any).total || 0 : 0;
+        if (!existing || scoreValue > existingValue) {
           const filtered = acc.filter(s => s.testType !== score.testType);
           filtered.push(score);
           return filtered;
@@ -146,7 +148,7 @@ export const transcriptRouter = createTRPCRouter({
       const coursesBySubject = await ctx.db
         .select({
           subject: courses.subject,
-          credits: courses.credits,
+          creditHours: courses.creditHours,
         })
         .from(courses)
         .where(and(eq(courses.studentId, input.studentId), eq(courses.tenantId, ctx.tenantId)));
@@ -157,21 +159,21 @@ export const transcriptRouter = createTRPCRouter({
           acc[subject] = { courses: 0, credits: 0 };
         }
         acc[subject].courses += 1;
-        acc[subject].credits += Number(course.credits);
+        acc[subject].credits += Number(course.creditHours);
         return acc;
       }, {} as Record<string, { courses: number; credits: number }>);
 
       // Get grade distribution
       const gradeDistribution = await ctx.db
         .select({
-          letterGrade: grades.letterGrade,
+          grade: grades.grade,
         })
         .from(grades)
         .innerJoin(courses, eq(grades.courseId, courses.id))
-        .where(and(eq(grades.tenantId, ctx.tenantId), eq(courses.studentId, input.studentId)));
+        .where(and(eq(courses.tenantId, ctx.tenantId), eq(courses.studentId, input.studentId)));
 
       const gradeStats = gradeDistribution.reduce((acc, grade) => {
-        const letter = grade.letterGrade;
+        const letter = grade.grade;
         acc[letter] = (acc[letter] ?? 0) + 1;
         return acc;
       }, {} as Record<Grade, number>);
@@ -180,7 +182,7 @@ export const transcriptRouter = createTRPCRouter({
         subjectStats,
         gradeStats,
         totalCourses: coursesBySubject.length,
-        totalCredits: coursesBySubject.reduce((sum, course) => sum + Number(course.credits), 0),
+        totalCredits: coursesBySubject.reduce((sum, course) => sum + Number(course.creditHours), 0),
       };
     }),
 
@@ -259,7 +261,7 @@ export const transcriptRouter = createTRPCRouter({
       const coursesBySubject = await ctx.db
         .select({
           subject: courses.subject,
-          credits: courses.credits,
+          creditHours: courses.creditHours,
           level: courses.level,
         })
         .from(courses)
@@ -280,10 +282,10 @@ export const transcriptRouter = createTRPCRouter({
       // Calculate earned credits by subject
       coursesBySubject.forEach(course => {
         const subject = course.subject;
-        const credits = Number(course.credits);
+        const credits = Number(course.creditHours);
         
-        if (requirements[subject]) {
-          requirements[subject].earned += credits;
+        if (subject in requirements) {
+          (requirements as any)[subject].earned += credits;
         } else {
           requirements["Electives"].earned += credits;
         }

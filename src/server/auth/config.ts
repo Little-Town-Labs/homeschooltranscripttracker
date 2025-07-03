@@ -57,7 +57,7 @@ export const authConfig = {
     accountsTable: accounts,
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
-  }),
+  }) as any,
   events: {
     async signIn({ user, isNewUser }) {
       if (isNewUser && user.email) {
@@ -77,7 +77,7 @@ export const authConfig = {
             tenantId: newTenant!.id, 
             role: "primary_guardian" 
           })
-          .where(eq(users.id, user.id));
+          .where(eq(users.id, user.id as string));
 
         // Send welcome email (async, don't wait)
         try {

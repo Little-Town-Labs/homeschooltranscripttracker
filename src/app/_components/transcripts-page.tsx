@@ -187,7 +187,7 @@ interface StudentTranscriptCardProps {
     firstName: string;
     lastName: string;
     graduationYear: number;
-    gpaScale: string;
+    gpaScale: "4.0" | "5.0";
   };
   selectedFormat: string;
   onGenerate: () => void;

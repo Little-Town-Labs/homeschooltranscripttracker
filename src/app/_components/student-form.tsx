@@ -41,13 +41,13 @@ export function StudentForm({ studentId, onClose }: StudentFormProps) {
   useEffect(() => {
     if (student) {
       setFormData({
-        firstName: student.firstName,
-        lastName: student.lastName,
-        dateOfBirth: student.dateOfBirth 
+        firstName: student.firstName || "",
+        lastName: student.lastName || "",
+        dateOfBirth: (student.dateOfBirth 
           ? new Date(student.dateOfBirth).toISOString().split("T")[0] 
-          : "",
+          : "") as string,
         graduationYear: student.graduationYear,
-        gpaScale: student.gpaScale,
+        gpaScale: student.gpaScale || "4.0",
       });
     }
   }, [student]);

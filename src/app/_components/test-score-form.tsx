@@ -48,20 +48,24 @@ export function TestScoreForm({ studentId, scoreId, onClose }: TestScoreFormProp
   // Load existing data when editing
   useEffect(() => {
     if (existingScore) {
+      const scores = typeof existingScore.scores === 'object' && existingScore.scores ? existingScore.scores as any : {};
+      
       setFormData({
-        testType: existingScore.testType,
+        testType: existingScore.testType as typeof formData.testType,
         testDate: new Date(existingScore.testDate).toISOString().split('T')[0] as string,
-        score: String(existingScore.score),
-        maxScore: existingScore.maxScore ? String(existingScore.maxScore) : "",
-        percentile: existingScore.percentile ? String(existingScore.percentile) : "",
-        subscores: (existingScore.subscores ?? {}) as Record<string, number>,
+        score: scores.total ? String(scores.total) : "",
+        maxScore: scores.maxScore ? String(scores.maxScore) : "",
+        percentile: scores.percentile ? String(scores.percentile) : "",
+        subscores: {},
         notes: existingScore.notes ?? "",
       });
       
-      // Convert subscores to string inputs
+      // Convert subscores to string inputs (everything except total, maxScore, percentile)
       const subsecInputs: Record<string, string> = {};
-      Object.entries((existingScore.subscores ?? {}) as Record<string, unknown>).forEach(([key, value]) => {
-        subsecInputs[key] = String(value);
+      Object.entries(scores).forEach(([key, value]) => {
+        if (!['total', 'maxScore', 'percentile'].includes(key) && typeof value === 'number') {
+          subsecInputs[key] = String(value);
+        }
       });
       setSubsectionInputs(subsecInputs);
     }
@@ -91,14 +95,31 @@ export function TestScoreForm({ studentId, scoreId, onClose }: TestScoreFormProp
       }
     });
 
+    // Build the scores object
+    const scores: any = {};
+    
+    if (formData.score) {
+      scores.total = parseInt(formData.score);
+    }
+    
+    if (formData.maxScore) {
+      scores.maxScore = parseInt(formData.maxScore);
+    }
+    
+    if (formData.percentile) {
+      scores.percentile = parseFloat(formData.percentile);
+    }
+    
+    // Add subscores
+    Object.entries(processedSubscores).forEach(([key, value]) => {
+      scores[key] = value;
+    });
+
     const submitData = {
       studentId,
       testType: formData.testType,
       testDate: formData.testDate,
-      score: parseInt(formData.score),
-      maxScore: formData.maxScore ? parseInt(formData.maxScore) : undefined,
-      percentile: formData.percentile ? parseFloat(formData.percentile) : undefined,
-      subscores: Object.keys(processedSubscores).length > 0 ? processedSubscores : undefined,
+      scores,
       notes: formData.notes || undefined,
     };
 

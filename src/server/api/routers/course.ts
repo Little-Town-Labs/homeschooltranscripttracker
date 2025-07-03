@@ -168,7 +168,7 @@ export const courseRouter = createTRPCRouter({
     // Group courses by academic year
     const coursesByYear = allCourses.reduce((acc, course) => {
       acc[course.academicYear] ??= [];
-      acc[course.academicYear].push(course);
+      acc[course.academicYear]!.push(course);
       return acc;
     }, {} as Record<string, typeof allCourses>);
 
