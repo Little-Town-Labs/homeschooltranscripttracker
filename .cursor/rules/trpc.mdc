@@ -1,0 +1,181 @@
+---
+description: How to use tRPC and react-query in the app
+globs: 
+alwaysApply: false
+---
+The project integrates tRPC with `@tanstack/react-query` by consistently using helper methods provided by the tRPC client. This approach standardizes how queries and mutations are defined and how their respective React Query keys are generated.
+
+Key characteristics of tRPC usage in this codebase:
+
+1.  **Client Initialization**:
+    *   The tRPC client is obtained within custom React hooks using `const trpc = useTRPC()`. This `useTRPC` hook is typically imported from a central client setup file (e.g., `@/client/trpc`).
+    *   Always use the centralized client hook rather than importing tRPC client directly to maintain consistency and enable potential client-level middleware or configuration.
+
+2.  **Using `queryOptions` for Queries**:
+    *   When setting up queries with `useQuery` from `@tanstack/react-query`, instead of manually defining query keys and fetcher functions, the code leverages a `queryOptions` helper method available on each tRPC query procedure.
+    *   This method takes the query input as its first argument and an optional object for tRPC/React Query options (like `enabled`) as its second argument.
+    *   Example:
+        ```typescript
+        // In use-conversation-messages.ts
+        const messagesQuery = useQuery(
+          trpc.message.list.queryOptions(
+            conversationId ? { conversationId } : skipToken,
+            { enabled: queryEnabled },
+          ),
+        );
+
+        // In use-tenant.ts
+        const { data: tenant } = useQuery(trpc.tenant.getTenant.queryOptions());
+        ```
+
+3.  **Using `mutationOptions` for Mutations**:
+    *   Similarly, for mutations with `useMutation` from `@tanstack/react-query`, a `mutationOptions` helper method is used. This method is available on each tRPC mutation procedure.
+    *   It can be called without arguments or with an object containing tRPC-specific options. The result is then spread into the `useMutation` hook's options, often alongside React Query mutation callbacks like `onMutate`, `onSuccess`, `onError`, and `onSettled`.
+    *   Example:
+        ```typescript
+        // In use-chat-assets.ts
+        const createPresignedUrlMutation = useMutation(
+          trpc.asset.generatePresignedUrl.mutationOptions(),
+        );
+
+        // In use-conversation-delete.ts
+        const mutation = useMutation({
+          ...trpc.conversation.delete.mutationOptions(),
+          onMutate: async (variables) => { /* ... */ },
+          onSuccess: () => { /* ... */ },
+          onError: (error) => { /* Handle error state */ },
+          onSettled: () => { /* Cleanup actions */ },
+        });
+        ```
+
+4.  **Generating Query Keys with `queryKey`**:
+    *   For operations that require direct interaction with the React Query cache (e.g., invalidating queries, setting query data optimistically), a `queryKey` helper method is used. This method is available on tRPC query procedures and takes the query input as an argument.
+    *   Example:
+        ```typescript
+        // In use-conversation-messages.ts
+        queryClient.invalidateQueries({
+          queryKey: trpc.conversation.list.queryKey({}),
+        });
+
+        queryClient.setQueryData(
+          trpc.message.list.queryKey({ conversationId: message.conversationId }),
+          // ... updater function
+        );
+        ```
+
+5.  **Procedure Path**:
+    *   tRPC procedures are accessed via a path on the initialized `trpc` client object, typically structured as `trpc.namespace.procedureName` (e.g., `trpc.message.list`, `trpc.asset.generatePresignedUrl`).
+
+6.  **Integration with `useQueryClient`**:
+    *   The `useQueryClient` hook from `@tanstack/react-query` is frequently used for cache manipulation tasks like invalidating data, performing optimistic updates, and cancelling outgoing requests, especially within mutation lifecycle callbacks.
+
+## **Error Handling Guidelines:**
+
+7.  **Error State Management**:
+    *   Always handle error states in both queries and mutations using the provided error objects from React Query.
+    *   For mutations, implement proper error handling in `onError` callbacks to provide user feedback.
+    *   Consider implementing error boundaries for critical tRPC operations that might cause component-level failures.
+    *   Example:
+        ```typescript
+        const { data, error, isError } = useQuery(
+          trpc.user.profile.queryOptions(),
+        );
+
+        if (isError) {
+          // Handle error state appropriately
+          return <ErrorComponent error={error} />;
+        }
+        ```
+
+8.  **Global Error Handling**:
+    *   Leverage tRPC's error handling capabilities by implementing proper error formatting and client-side error interceptors.
+    *   Use React Query's global error handling for consistent error reporting across all tRPC operations.
+
+## **Performance Optimization:**
+
+9.  **Cache Invalidation Strategy**:
+    *   Be strategic about query invalidation. Use specific query keys when possible rather than invalidating entire namespaces.
+    *   Prefer granular invalidation over broad cache clearing to maintain performance.
+    *   Example:
+        ```typescript
+        // Prefer specific invalidation
+        queryClient.invalidateQueries({
+          queryKey: trpc.message.list.queryKey({ conversationId }),
+        });
+
+        // Over broad invalidation
+        queryClient.invalidateQueries({
+          queryKey: ['message'], // Too broad
+        });
+        ```
+
+10. **Optimistic Updates**:
+    *   Implement optimistic updates for better user experience, especially for mutations that are likely to succeed.
+    *   Always provide rollback logic in case of mutation failures.
+    *   Example:
+        ```typescript
+        const mutation = useMutation({
+          ...trpc.message.create.mutationOptions(),
+          onMutate: async (newMessage) => {
+            // Cancel outgoing refetches
+            await queryClient.cancelQueries({
+              queryKey: trpc.message.list.queryKey({ conversationId }),
+            });
+
+            // Snapshot previous value
+            const previousMessages = queryClient.getQueryData(
+              trpc.message.list.queryKey({ conversationId })
+            );
+
+            // Optimistically update
+            queryClient.setQueryData(
+              trpc.message.list.queryKey({ conversationId }),
+              (old) => [...(old || []), newMessage]
+            );
+
+            return { previousMessages };
+          },
+          onError: (err, newMessage, context) => {
+            // Rollback on error
+            queryClient.setQueryData(
+              trpc.message.list.queryKey({ conversationId }),
+              context?.previousMessages
+            );
+          },
+        });
+        ```
+
+11. **Query Stale Time and Cache Time**:
+    *   Configure appropriate `staleTime` and `cacheTime` values based on data freshness requirements.
+    *   Use longer stale times for relatively static data to reduce unnecessary network requests.
+
+## **Type Safety Best Practices:**
+
+12. **TypeScript Integration**:
+    *   Leverage tRPC's automatic type inference by properly typing procedure inputs and outputs.
+    *   Avoid manual type assertions when working with tRPC data - trust the inferred types.
+    *   Use `typeof` and `inferRouterInputs`/`inferRouterOutputs` for extracting types when needed.
+    *   Example:
+        ```typescript
+        import type { inferRouterInputs, inferRouterOutputs } from '@trpc/server';
+        import type { AppRouter } from '../server/routers/app';
+
+        type RouterInputs = inferRouterInputs<AppRouter>;
+        type RouterOutputs = inferRouterOutputs<AppRouter>;
+
+        // Use inferred types
+        type MessageInput = RouterInputs['message']['create'];
+        type MessageOutput = RouterOutputs['message']['list'];
+        ```
+
+13. **Input Validation**:
+    *   Rely on tRPC's built-in input validation (typically using Zod schemas) rather than implementing client-side validation for the same constraints.
+    *   Handle validation errors gracefully by checking error codes and providing meaningful user feedback.
+
+## **Testing Considerations:**
+
+14. **Mock tRPC Procedures**:
+    *   When testing components that use tRPC, mock the tRPC client rather than individual React Query hooks.
+    *   Use testing utilities that preserve the tRPC query key structure for accurate test scenarios.
+
+This consistent use of `queryOptions`, `mutationOptions`, and `queryKey` helper methods streamlines the integration with `@tanstack/react-query`, ensuring that query keys are generated correctly and that options are passed in a standardized way. It abstracts away some of the manual setup that might be seen in other tRPC and React Query integrations while maintaining high performance, type safety, and robust error handling.

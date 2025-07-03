@@ -5,7 +5,7 @@ import {
   createTRPCRouter,
   guardianProcedure,
 } from "@/server/api/trpc";
-import { courses, courseLevelEnum } from "@/server/db/schema";
+import { courses, courseLevelEnum, subjectEnum } from "@/server/db/schema";
 
 export const courseRouter = createTRPCRouter({
   // Get all courses for the current tenant
@@ -51,23 +51,49 @@ export const courseRouter = createTRPCRouter({
       z.object({
         studentId: z.string().uuid(),
         courseName: z.string().min(1, "Course name is required"),
-        subject: z.string().min(1, "Subject is required"),
+        subject: z.enum(subjectEnum.enumValues),
         level: z.enum(courseLevelEnum.enumValues).default("Regular"),
         credits: z.number().min(0).max(10).default(1),
         academicYear: z.string().min(1, "Academic year is required"),
         semester: z.string().optional(),
         description: z.string().optional(),
-        isActive: z.boolean().default(true),
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Debug logging to see exactly what's happening
+      console.log("=== COURSE CREATE DEBUG ===");
+      console.log("Raw input:", input);
+      console.log("courseName value:", input.courseName);
+      console.log("courseName type:", typeof input.courseName);
+      console.log("courseName length:", input.courseName?.length);
+      
+      // Validate that courseName is not empty
+      if (!input.courseName || input.courseName.trim() === '') {
+        throw new Error("Course name cannot be empty");
+      }
+      
+      const insertData = {
+        studentId: input.studentId,
+        name: input.courseName.trim(), // Ensure no whitespace issues
+        subject: input.subject,
+        level: input.level,
+        creditHours: input.credits.toString(),
+        academicYear: input.academicYear,
+        description: input.description ?? null,
+        tenantId: ctx.tenantId,
+      };
+      
+      console.log("Insert data:", insertData);
+      console.log("=== END DEBUG ===");
+      
       const [newCourse] = await ctx.db
         .insert(courses)
-        .values({
-          ...input,
-          tenantId: ctx.tenantId,
-        })
+        .values(insertData)
         .returning();
+
+      if (!newCourse) {
+        throw new Error("Failed to create course");
+      }
 
       return newCourse;
     }),
@@ -78,21 +104,24 @@ export const courseRouter = createTRPCRouter({
       z.object({
         id: z.string().uuid(),
         courseName: z.string().min(1).optional(),
-        subject: z.string().min(1).optional(),
+        subject: z.enum(subjectEnum.enumValues).optional(),
         level: z.enum(courseLevelEnum.enumValues).optional(),
         credits: z.number().min(0).max(10).optional(),
         academicYear: z.string().min(1).optional(),
         semester: z.string().optional(),
         description: z.string().optional(),
-        isActive: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...updateData } = input;
+      const { id, courseName, credits, ...updateData } = input;
+
+      const updateValues: Partial<typeof courses.$inferInsert> = { ...updateData };
+      if (courseName !== undefined) updateValues.name = courseName;
+      if (credits !== undefined) updateValues.creditHours = credits.toString();
 
       const [updatedCourse] = await ctx.db
         .update(courses)
-        .set(updateData)
+        .set(updateValues)
         .where(and(eq(courses.id, id), eq(courses.tenantId, ctx.tenantId)))
         .returning();
 
@@ -103,13 +132,12 @@ export const courseRouter = createTRPCRouter({
       return updatedCourse;
     }),
 
-  // Soft delete a course (set isActive to false)
+  // Delete a course (hard delete)
   delete: guardianProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const [deletedCourse] = await ctx.db
-        .update(courses)
-        .set({ isActive: false })
+        .delete(courses)
         .where(and(eq(courses.id, input.id), eq(courses.tenantId, ctx.tenantId)))
         .returning();
 
@@ -125,7 +153,7 @@ export const courseRouter = createTRPCRouter({
     const result = await ctx.db
       .select({ count: courses.id })
       .from(courses)
-      .where(and(eq(courses.tenantId, ctx.tenantId), eq(courses.isActive, true)));
+      .where(eq(courses.tenantId, ctx.tenantId));
 
     return result.length;
   }),
@@ -135,7 +163,7 @@ export const courseRouter = createTRPCRouter({
     const allCourses = await ctx.db
       .select()
       .from(courses)
-      .where(and(eq(courses.tenantId, ctx.tenantId), eq(courses.isActive, true)));
+      .where(eq(courses.tenantId, ctx.tenantId));
 
     // Group courses by academic year
     const coursesByYear = allCourses.reduce((acc, course) => {
