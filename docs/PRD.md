@@ -314,13 +314,14 @@ export const transcriptRouter = createTRPCRouter({
   generate: protectedProcedure
     .input(z.object({
       studentId: z.string().uuid(),
-      format: z.enum(['preview', 'pdf']),
+      format: z.enum(['standard', 'detailed', 'college-prep']).default('standard'),
+      includeWatermark: z.boolean().default(false),
     }))
     .mutation(async ({ ctx, input }) => {
       // Check subscription status
-      const subscription = await checkSubscriptionAccess(ctx.session.user.tenantId);
+      const subscription = await checkSubscriptionAccess(ctx.tenantId);
       
-      if (input.format === 'pdf' && !subscription.canGeneratePDF) {
+      if (!subscription.canGeneratePDF) {
         throw new TRPCError({
           code: 'FORBIDDEN',
           message: 'PDF generation requires active subscription'
@@ -328,15 +329,18 @@ export const transcriptRouter = createTRPCRouter({
       }
 
       // Generate transcript data
-      const transcriptData = await generateTranscriptData(input.studentId);
+      const transcriptData = await generateTranscriptData(input.studentId, ctx.tenantId);
       
-      if (input.format === 'preview') {
-        return { ...transcriptData, watermark: true };
-      }
+      // Generate PDF server-side using React PDF
+      const pdfResult = await generatePdfServerSide(transcriptData, {
+        format: input.format,
+        includeWatermark: input.includeWatermark
+      });
       
-      // Generate PDF using Netlify Function
-      const pdfUrl = await generatePDF(transcriptData);
-      return { pdfUrl };
+      return { 
+        pdf: pdfResult.pdf, // Base64 encoded PDF
+        filename: pdfResult.filename 
+      };
     }),
 });
 ```

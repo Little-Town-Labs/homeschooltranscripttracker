@@ -21,7 +21,7 @@
 - **Transcript Generation** - Create professional, printable transcripts
 - **GPA Calculation** - Automatic weighted and unweighted GPA computation
 - **Academic Reports** - Detailed progress reports and analytics
-- **Export Options** - PDF generation for official documentation
+- **Export Options** - Server-side PDF generation for official documentation
 
 ### 💼 **SaaS Features**
 - **Multi-Tenant Architecture** - Secure family data isolation

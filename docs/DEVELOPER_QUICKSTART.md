@@ -72,6 +72,18 @@ export const myRouter = createTRPCRouter({
     .input(z.object({...}))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.insert()...
+    }),
+  
+  // Server-side PDF generation (NEW)
+  generateTranscriptPdf: guardianProcedure
+    .input(z.object({
+      studentId: z.string().uuid(),
+      format: z.enum(['standard', 'detailed', 'college-prep']).default('standard'),
+      includeWatermark: z.boolean().default(false),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Server-side PDF generation using React PDF
+      // Returns base64 encoded PDF for download
     })
 })
 ```
@@ -90,6 +102,12 @@ export function StudentForm({ studentId, onClose }: StudentFormProps) {
 ```
 
 ## 🛠️ Common Development Tasks
+
+### PDF Generation Architecture
+**Server-Side Implementation**: PDF generation now runs on the server using `@react-pdf/renderer` to avoid browser compatibility issues.
+- **Client**: Uses `usePdfGenerator` hook → calls tRPC `generateTranscriptPdf` mutation
+- **Server**: Generates PDF with React PDF → returns base64 encoded PDF
+- **Download**: Client converts base64 to blob and triggers download
 
 ### Adding New Features
 1. **Check types first**: Ensure domain types exist in `src/types/core/domain-types.ts`
@@ -127,6 +145,8 @@ npm run typecheck    # Verify types are updated
 ### Critical Components  
 - `src/app/_components/test-score-form.tsx` - JSON scores handling
 - `src/app/_components/transcript-preview.tsx` - Field name references
+- `src/server/api/routers/transcript.ts` - Server-side PDF generation endpoint
+- `src/hooks/use-pdf-generator.tsx` - Client-side PDF generation hook (uses tRPC)
 - `src/server/api/routers/` - All tRPC routers with proper patterns
 
 ### Configuration

@@ -333,15 +333,15 @@ test.describe('Transcript Generation and Access Control', () => {
     await expect(page.locator('[data-testid=transcript-preview]')).toBeVisible();
     await expect(page.locator('[data-testid=trial-watermark]')).not.toBeVisible();
     
-    // Should be able to download
+    // Should be able to download (server-side PDF generation)
     const downloadPromise = page.waitForDownload();
     await page.click('[data-testid=download-pdf-btn]');
     const download = await downloadPromise;
     
     // Verify download
-    expect(download.suggestedFilename()).toMatch(/transcript.*\.pdf$/);
+    expect(download.suggestedFilename()).toMatch(/.*_.*_Transcript\.pdf$/);
     
-    // Verify transcript content
+    // Verify transcript content in preview
     await expect(page.locator('[data-testid=student-name]'))
       .toContainText(student.firstName + ' ' + student.lastName);
     await expect(page.locator('[data-testid=school-administrator]'))
