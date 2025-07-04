@@ -13,8 +13,6 @@ import {
   tenants,
   type Grade 
 } from "@/server/db/schema";
-// Dynamic import for PDF generation to avoid SSR issues
-// import { PDFGenerator } from "@/lib/pdf-generator";
 
 
 
@@ -325,5 +323,478 @@ export const transcriptRouter = createTRPCRouter({
           creditsRemaining: Math.max(0, totalRequired - totalEarned),
         },
       };
+    }),
+
+  // Generate PDF transcript (server-side)
+  generateTranscriptPdf: guardianProcedure
+    .input(z.object({
+      studentId: z.string().uuid(),
+      format: z.enum(['standard', 'detailed', 'college-prep']).default('standard'),
+      includeWatermark: z.boolean().default(false),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Get transcript data using the existing query logic
+      const studentResult = await ctx.db
+        .select()
+        .from(students)
+        .where(and(eq(students.id, input.studentId), eq(students.tenantId, ctx.tenantId)))
+        .limit(1);
+
+      const student = studentResult[0];
+      if (!student) {
+        throw new Error("Student not found");
+      }
+
+      // Get tenant information
+      const tenantResult = await ctx.db
+        .select()
+        .from(tenants)
+        .where(eq(tenants.id, ctx.tenantId))
+        .limit(1);
+
+      const tenant = tenantResult[0];
+
+      // Get courses with grades
+      const coursesWithGrades = await ctx.db
+        .select({
+          course: courses,
+          grade: grades,
+        })
+        .from(courses)
+        .leftJoin(grades, eq(courses.id, grades.courseId))
+        .where(and(eq(courses.studentId, input.studentId), eq(courses.tenantId, ctx.tenantId)))
+        .orderBy(asc(courses.academicYear), asc(courses.name));
+
+      // Get test scores
+      const studentTestScores = await ctx.db
+        .select()
+        .from(testScores)
+        .where(and(eq(testScores.studentId, input.studentId), eq(testScores.tenantId, ctx.tenantId)))
+        .orderBy(desc(testScores.testDate));
+
+      // Calculate GPA and credits
+      const gpaData = await ctx.db
+        .select({
+          gradePoints: grades.gpaPoints,
+          credits: courses.creditHours,
+        })
+        .from(grades)
+        .innerJoin(courses, eq(grades.courseId, courses.id))
+        .where(and(eq(courses.tenantId, ctx.tenantId), eq(courses.studentId, input.studentId)));
+
+      let cumulativeGPA = 0;
+      let totalCredits = 0;
+
+      if (gpaData.length > 0) {
+        const totalQualityPoints = gpaData.reduce(
+          (sum, grade) => sum + (Number(grade.gradePoints) * Number(grade.credits)),
+          0
+        );
+        totalCredits = gpaData.reduce(
+          (sum, grade) => sum + Number(grade.credits),
+          0
+        );
+        cumulativeGPA = totalCredits > 0 ? totalQualityPoints / totalCredits : 0;
+      }
+
+      // Group courses by year
+      const coursesByYear: Record<string, typeof coursesWithGrades> = {};
+      coursesWithGrades.forEach(item => {
+        const year = item.course.academicYear;
+        coursesByYear[year] ??= [];
+        coursesByYear[year].push(item);
+      });
+
+      // Calculate GPA by year
+      const gpaByYear: Record<string, { gpa: number; credits: number }> = {};
+      Object.entries(coursesByYear).forEach(([year, yearCourses]) => {
+        const yearGpaData = yearCourses.filter(item => item.grade);
+        if (yearGpaData.length > 0) {
+          const yearQualityPoints = yearGpaData.reduce(
+            (sum, item) => sum + (Number(item.grade?.gpaPoints) * Number(item.course.creditHours)),
+            0
+          );
+          const yearCredits = yearGpaData.reduce(
+            (sum, item) => sum + Number(item.course.creditHours),
+            0
+          );
+          gpaByYear[year] = {
+            gpa: yearCredits > 0 ? yearQualityPoints / yearCredits : 0,
+            credits: yearCredits,
+          };
+        }
+      });
+
+      // Get best test scores per type
+      const bestTestScores = studentTestScores.reduce((acc, score) => {
+        const existing = acc.find(s => s.testType === score.testType);
+        const scoreValue = getTestScoreValue(score.scores, 'total');
+        const existingValue = existing ? getTestScoreValue(existing.scores, 'total') : 0;
+        if (!existing || scoreValue > existingValue) {
+          const filtered = acc.filter(s => s.testType !== score.testType);
+          filtered.push(score);
+          return filtered;
+        }
+        return acc;
+      }, [] as typeof studentTestScores);
+
+      const transcriptData = {
+        student,
+        tenant,
+        coursesByYear,
+        gpaByYear,
+        cumulativeGPA: Math.round(cumulativeGPA * 100) / 100,
+        totalCredits,
+        testScores: bestTestScores.sort((a, b) => a.testType.localeCompare(b.testType)),
+      };
+
+      // Generate PDF using React PDF (server-side)
+      try {
+        const { renderToBuffer } = await import('@react-pdf/renderer');
+        const { Document, Page, Text, View, StyleSheet } = await import('@react-pdf/renderer');
+        const React = await import('react');
+
+        // Helper function to safely get test score values
+        const getTestScoreValue = (scores: unknown, key: string): number | string | undefined => {
+          if (typeof scores === 'object' && scores !== null && key in scores) {
+            return (scores as Record<string, unknown>)[key] as number | string | undefined;
+          }
+          return undefined;
+        };
+
+        // Helper function to safely format numbers
+        const formatNumber = (value: string | number | null): string => {
+          if (value === null || value === undefined) return '0';
+          return typeof value === 'string' ? value : value.toString();
+        };
+
+        // PDF Styles
+        const styles = StyleSheet.create({
+          page: {
+            flexDirection: 'column',
+            backgroundColor: '#ffffff',
+            paddingTop: 30,
+            paddingBottom: 30,
+            paddingHorizontal: 30,
+            fontFamily: 'Helvetica',
+            fontSize: 10,
+            lineHeight: 1.4,
+          },
+          header: {
+            marginBottom: 20,
+            textAlign: 'center',
+            borderBottom: '2pt solid #333333',
+            paddingBottom: 10,
+          },
+          schoolName: {
+            fontSize: 18,
+            fontWeight: 'bold',
+            marginBottom: 5,
+            color: '#333333',
+          },
+          documentTitle: {
+            fontSize: 14,
+            fontWeight: 'bold',
+            marginBottom: 10,
+            color: '#333333',
+          },
+          studentInfo: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            marginBottom: 20,
+            padding: 10,
+            backgroundColor: '#f8f9fa',
+            borderRadius: 4,
+          },
+          studentDetails: {
+            flex: 1,
+          },
+          academicSummary: {
+            flex: 1,
+            marginLeft: 20,
+          },
+          infoLabel: {
+            fontSize: 8,
+            color: '#666666',
+            marginBottom: 2,
+          },
+          infoValue: {
+            fontSize: 10,
+            fontWeight: 'bold',
+            marginBottom: 8,
+            color: '#333333',
+          },
+          yearSection: {
+            marginBottom: 15,
+            border: '1pt solid #e0e0e0',
+            borderRadius: 4,
+          },
+          yearHeader: {
+            backgroundColor: '#f0f0f0',
+            padding: 8,
+            fontSize: 12,
+            fontWeight: 'bold',
+            color: '#333333',
+          },
+          yearGpa: {
+            fontSize: 10,
+            color: '#666666',
+            marginTop: 4,
+          },
+          courseTable: {
+            marginTop: 8,
+          },
+          tableHeader: {
+            flexDirection: 'row',
+            backgroundColor: '#f8f9fa',
+            padding: 4,
+            borderBottom: '1pt solid #dee2e6',
+            fontSize: 8,
+            fontWeight: 'bold',
+            color: '#495057',
+          },
+          tableRow: {
+            flexDirection: 'row',
+            padding: 4,
+            borderBottom: '0.5pt solid #dee2e6',
+            minHeight: 20,
+          },
+          tableCell: {
+            flex: 1,
+            fontSize: 9,
+            color: '#333333',
+            paddingRight: 4,
+          },
+          courseName: {
+            flex: 3,
+          },
+          courseSubject: {
+            flex: 1,
+          },
+          courseLevel: {
+            flex: 1,
+          },
+          courseCredits: {
+            flex: 1,
+            textAlign: 'right',
+          },
+          courseGrade: {
+            flex: 1,
+            textAlign: 'center',
+            fontWeight: 'bold',
+          },
+          testScoresSection: {
+            marginTop: 20,
+            padding: 10,
+            backgroundColor: '#f8f9fa',
+            borderRadius: 4,
+          },
+          testScoresTitle: {
+            fontSize: 12,
+            fontWeight: 'bold',
+            marginBottom: 10,
+            color: '#333333',
+          },
+          testScoresGrid: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 8,
+          },
+          testScoreCard: {
+            backgroundColor: '#ffffff',
+            padding: 8,
+            borderRadius: 4,
+            border: '1pt solid #dee2e6',
+            minWidth: 120,
+          },
+          testType: {
+            fontSize: 9,
+            fontWeight: 'bold',
+            color: '#495057',
+            marginBottom: 4,
+          },
+          testScore: {
+            fontSize: 11,
+            fontWeight: 'bold',
+            color: '#333333',
+            marginBottom: 2,
+          },
+          testDate: {
+            fontSize: 8,
+            color: '#666666',
+            marginBottom: 2,
+          },
+          testPercentile: {
+            fontSize: 8,
+            color: '#007bff',
+            fontStyle: 'italic',
+          },
+          footer: {
+            marginTop: 20,
+            paddingTop: 10,
+            borderTop: '1pt solid #dee2e6',
+            textAlign: 'center',
+          },
+          footerText: {
+            fontSize: 8,
+            color: '#666666',
+            marginBottom: 4,
+          },
+          footerContact: {
+            fontSize: 8,
+            color: '#333333',
+          },
+          watermark: {
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%) rotate(-45deg)',
+            fontSize: 48,
+            color: '#f0f0f0',
+            opacity: 0.3,
+            zIndex: -1,
+          },
+        });
+
+        // Create PDF Document
+        const MyDocument = React.createElement(Document, {}, 
+          React.createElement(Page, { size: 'A4', style: styles.page },
+            // Watermark for trial users
+            input.includeWatermark && React.createElement(View, { style: styles.watermark },
+              React.createElement(Text, {}, 'TRIAL VERSION')
+            ),
+            
+            // Header
+            React.createElement(View, { style: styles.header },
+              React.createElement(Text, { style: styles.schoolName }, 
+                transcriptData.tenant?.name ?? 'Homeschool'
+              ),
+              React.createElement(Text, { style: styles.documentTitle }, 
+                'Official Academic Transcript'
+              )
+            ),
+
+            // Student Information
+            React.createElement(View, { style: styles.studentInfo },
+              React.createElement(View, { style: styles.studentDetails },
+                React.createElement(Text, { style: styles.infoLabel }, 'Student Name:'),
+                React.createElement(Text, { style: styles.infoValue }, 
+                  `${transcriptData.student.firstName} ${transcriptData.student.lastName}`
+                ),
+                React.createElement(Text, { style: styles.infoLabel }, 'Date of Birth:'),
+                React.createElement(Text, { style: styles.infoValue }, 
+                  transcriptData.student.dateOfBirth 
+                    ? new Date(transcriptData.student.dateOfBirth).toLocaleDateString()
+                    : 'Not provided'
+                ),
+                React.createElement(Text, { style: styles.infoLabel }, 'Graduation Year:'),
+                React.createElement(Text, { style: styles.infoValue }, 
+                  transcriptData.student.graduationYear.toString()
+                )
+              ),
+              React.createElement(View, { style: styles.academicSummary },
+                React.createElement(Text, { style: styles.infoLabel }, 'Cumulative GPA:'),
+                React.createElement(Text, { style: styles.infoValue }, 
+                  `${transcriptData.cumulativeGPA.toFixed(2)} / ${transcriptData.student.gpaScale ?? '4.0'}`
+                ),
+                React.createElement(Text, { style: styles.infoLabel }, 'Total Credits:'),
+                React.createElement(Text, { style: styles.infoValue }, 
+                  `${transcriptData.totalCredits} credits`
+                ),
+                React.createElement(Text, { style: styles.infoLabel }, 'Required Credits:'),
+                React.createElement(Text, { style: styles.infoValue }, 
+                  `${formatNumber(transcriptData.student.minCreditsForGraduation) || '24'} credits`
+                )
+              )
+            ),
+
+            // Course Records by Year
+            ...Object.entries(transcriptData.coursesByYear).map(([year, courses]) => 
+              React.createElement(View, { key: year, style: styles.yearSection },
+                React.createElement(View, { style: styles.yearHeader },
+                  React.createElement(Text, {}, `Academic Year ${year}`),
+                  transcriptData.gpaByYear[year] && React.createElement(Text, { style: styles.yearGpa },
+                    `Year GPA: ${transcriptData.gpaByYear[year].gpa.toFixed(2)} | Credits: ${transcriptData.gpaByYear[year].credits}`
+                  )
+                ),
+                React.createElement(View, { style: styles.courseTable },
+                  React.createElement(View, { style: styles.tableHeader },
+                    React.createElement(Text, { style: [styles.tableCell, styles.courseName] }, 'Course Name'),
+                    React.createElement(Text, { style: [styles.tableCell, styles.courseSubject] }, 'Subject'),
+                    React.createElement(Text, { style: [styles.tableCell, styles.courseLevel] }, 'Level'),
+                    React.createElement(Text, { style: [styles.tableCell, styles.courseCredits] }, 'Credits'),
+                    React.createElement(Text, { style: [styles.tableCell, styles.courseGrade] }, 'Grade')
+                  ),
+                  ...courses.map((item) => 
+                    React.createElement(View, { key: item.course.id, style: styles.tableRow },
+                      React.createElement(Text, { style: [styles.tableCell, styles.courseName] }, 
+                        item.course.name
+                      ),
+                      React.createElement(Text, { style: [styles.tableCell, styles.courseSubject] }, 
+                        item.course.subject ?? 'General'
+                      ),
+                      React.createElement(Text, { style: [styles.tableCell, styles.courseLevel] }, 
+                        item.course.level ?? 'Standard'
+                      ),
+                      React.createElement(Text, { style: [styles.tableCell, styles.courseCredits] }, 
+                        formatNumber(item.course.creditHours)
+                      ),
+                      React.createElement(Text, { style: [styles.tableCell, styles.courseGrade] }, 
+                        item.grade?.grade ?? 'IP'
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+
+            // Test Scores
+            transcriptData.testScores.length > 0 && React.createElement(View, { style: styles.testScoresSection },
+              React.createElement(Text, { style: styles.testScoresTitle }, 'Standardized Test Scores'),
+              React.createElement(View, { style: styles.testScoresGrid },
+                ...transcriptData.testScores.map((score) => 
+                  React.createElement(View, { key: score.id, style: styles.testScoreCard },
+                    React.createElement(Text, { style: styles.testType }, score.testType),
+                    React.createElement(Text, { style: styles.testScore }, 
+                      `${getTestScoreValue(score.scores, 'total') ?? 'N/A'}${getTestScoreValue(score.scores, 'maxScore') ? ` / ${getTestScoreValue(score.scores, 'maxScore')}` : ''}`
+                    ),
+                    React.createElement(Text, { style: styles.testDate }, 
+                      new Date(score.testDate).toLocaleDateString()
+                    ),
+                    getTestScoreValue(score.scores, 'percentile') && React.createElement(Text, { style: styles.testPercentile }, 
+                      `${getTestScoreValue(score.scores, 'percentile')}th percentile`
+                    )
+                  )
+                )
+              )
+            ),
+
+            // Footer
+            React.createElement(View, { style: styles.footer },
+              React.createElement(Text, { style: styles.footerText }, 
+                `Generated on ${new Date().toLocaleDateString()}`
+              ),
+              React.createElement(Text, { style: styles.footerContact }, 
+                `Issued by: ${transcriptData.tenant?.name ?? 'Homeschool'} | Contact: ${transcriptData.tenant?.primaryEmail ?? 'contact@homeschool.edu'}`
+              )
+            )
+          )
+        );
+
+        // Generate PDF buffer
+        const pdfBuffer = await renderToBuffer(MyDocument);
+        
+        // Convert buffer to base64 for transmission
+        const pdfBase64 = pdfBuffer.toString('base64');
+        
+        return {
+          pdf: pdfBase64,
+          filename: `${transcriptData.student.firstName}_${transcriptData.student.lastName}_Transcript.pdf`,
+        };
+
+      } catch (error) {
+        console.error('PDF generation error:', error);
+        throw new Error(`PDF generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     }),
 });

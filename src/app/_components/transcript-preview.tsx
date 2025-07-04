@@ -27,13 +27,13 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
   const currentFormat = formats?.templates.find(t => t.id === format);
 
   const handleDownloadPDF = async () => {
-    if (!transcriptData?.tenant) return;
+    if (!transcriptData?.student) return;
     
     try {
       setIsGenerating(true);
       
-      // Generate PDF blob
-      const pdfBlob = await generatePdf(transcriptData, {
+      // Generate PDF blob using server-side generation
+      const pdfBlob = await generatePdf(studentId, {
         format: format as 'standard' | 'detailed' | 'college-prep',
         includeWatermark: false, // TODO: Check subscription status
       });
