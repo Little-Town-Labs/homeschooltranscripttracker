@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { api } from "@/trpc/react";
+import type { TestScoreData } from "@/types/core/domain-types";
 
 interface TestScoreFormProps {
   studentId: string;
@@ -48,11 +49,11 @@ export function TestScoreForm({ studentId, scoreId, onClose }: TestScoreFormProp
   // Load existing data when editing
   useEffect(() => {
     if (existingScore) {
-      const scores = typeof existingScore.scores === 'object' && existingScore.scores ? existingScore.scores as any : {};
-      
+      const scores = typeof existingScore.scores === 'object' && existingScore.scores ? existingScore.scores as TestScoreData : {};
+
       setFormData({
         testType: existingScore.testType as typeof formData.testType,
-        testDate: new Date(existingScore.testDate).toISOString().split('T')[0] as string,
+        testDate: new Date(existingScore.testDate).toISOString().split('T')[0]!,
         score: scores.total ? String(scores.total) : "",
         maxScore: scores.maxScore ? String(scores.maxScore) : "",
         percentile: scores.percentile ? String(scores.percentile) : "",
@@ -96,20 +97,20 @@ export function TestScoreForm({ studentId, scoreId, onClose }: TestScoreFormProp
     });
 
     // Build the scores object
-    const scores: any = {};
-    
+    const scores: TestScoreData = {};
+
     if (formData.score) {
       scores.total = parseInt(formData.score);
     }
-    
+
     if (formData.maxScore) {
       scores.maxScore = parseInt(formData.maxScore);
     }
-    
+
     if (formData.percentile) {
       scores.percentile = parseFloat(formData.percentile);
     }
-    
+
     // Add subscores
     Object.entries(processedSubscores).forEach(([key, value]) => {
       scores[key] = value;

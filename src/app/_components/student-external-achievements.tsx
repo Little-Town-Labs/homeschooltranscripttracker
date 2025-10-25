@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { api } from "@/trpc/react";
 import { ExternalAchievementForm } from "./external-achievement-form";
+import type { ExternalAchievementMetadata } from "@/types/core/domain-types";
 
 interface StudentExternalAchievementsProps {
   studentId: string;
@@ -56,10 +57,8 @@ export function StudentExternalAchievements({
     achievements?.reduce(
       (acc, achievement) => {
         const category = achievement.category;
-        if (!acc[category]) {
-          acc[category] = [];
-        }
-        acc[category]!.push(achievement);
+        acc[category] ??= [];
+        acc[category].push(achievement);
         return acc;
       },
       {} as Record<string, typeof achievements>
@@ -135,7 +134,7 @@ export function StudentExternalAchievements({
                               new Date(a.certificateDate).getTime()
                           )
                           .map((achievement) => {
-                            const metadata = achievement.metadata as any;
+                            const metadata = achievement.metadata as ExternalAchievementMetadata | null;
                             return (
                               <tr
                                 key={achievement.id}

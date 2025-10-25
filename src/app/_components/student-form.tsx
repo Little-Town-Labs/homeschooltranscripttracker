@@ -42,13 +42,13 @@ export function StudentForm({ studentId, onClose }: StudentFormProps) {
   useEffect(() => {
     if (student) {
       setFormData({
-        firstName: student.firstName || "",
-        lastName: student.lastName || "",
-        dateOfBirth: (student.dateOfBirth 
-          ? new Date(student.dateOfBirth).toISOString().split("T")[0] 
-          : "") as string,
+        firstName: student.firstName ?? "",
+        lastName: student.lastName ?? "",
+        dateOfBirth: student.dateOfBirth
+          ? new Date(student.dateOfBirth).toISOString().split("T")[0]!
+          : "",
         graduationYear: student.graduationYear,
-        gpaScale: student.gpaScale || "4.0",
+        gpaScale: student.gpaScale ?? "4.0",
         minCreditsForGraduation: student.minCreditsForGraduation ? Number(student.minCreditsForGraduation) : 24,
       });
     }

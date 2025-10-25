@@ -73,7 +73,7 @@ export interface TestScoreData {
   total?: number;
   maxScore?: number;
   percentile?: number;
-  [key: string]: number | undefined; // For subscores like math, ebrw, etc.
+  [key: string]: number | string | undefined; // For subscores and custom fields
 }
 
 // External achievement metadata structure (JSON field)

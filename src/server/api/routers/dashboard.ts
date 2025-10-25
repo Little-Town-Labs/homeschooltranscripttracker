@@ -247,9 +247,7 @@ export const dashboardRouter = createTRPCRouter({
       const gpaByYear: Record<string, { gpa: number; credits: number; students: Set<string> }> = {};
       gradesByYear.forEach(item => {
         const year = item.academicYear;
-        if (!gpaByYear[year]) {
-          gpaByYear[year] = { gpa: 0, credits: 0, students: new Set() };
-        }
+        gpaByYear[year] ??= { gpa: 0, credits: 0, students: new Set() };
         gpaByYear[year].credits += Number(item.creditHours);
         gpaByYear[year].students.add(item.studentId);
       });

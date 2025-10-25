@@ -293,7 +293,7 @@ function StudentTranscriptCard({ student, selectedFormat, onGenerate }: StudentT
             onClick={onGenerate}
             disabled={validation && !validation.canGenerate}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              validation && validation.canGenerate
+              validation?.canGenerate
                 ? "bg-indigo-600 text-white hover:bg-indigo-700"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}

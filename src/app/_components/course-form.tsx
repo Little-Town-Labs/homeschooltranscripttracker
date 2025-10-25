@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { api } from "@/trpc/react";
+import type { Subject } from "@/types/core/domain-types";
 
 interface CourseFormProps {
   courseId?: string | null;
@@ -73,7 +74,7 @@ export function CourseForm({ courseId, preselectedStudentId, onClose }: CourseFo
         await updateCourse.mutateAsync({
           id: courseId,
           courseName: formData.name,
-          subject: formData.subject as any,
+          subject: formData.subject as Subject,
           level: formData.level,
           credits: formData.creditHours,
           academicYear: formData.academicYear,
@@ -82,7 +83,7 @@ export function CourseForm({ courseId, preselectedStudentId, onClose }: CourseFo
       } else {
         await createCourse.mutateAsync({
           courseName: formData.name,
-          subject: formData.subject as any,
+          subject: formData.subject as Subject,
           level: formData.level,
           credits: formData.creditHours,
           studentId: formData.studentId,

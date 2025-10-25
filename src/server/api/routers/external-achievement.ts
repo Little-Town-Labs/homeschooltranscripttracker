@@ -81,11 +81,11 @@ export const externalAchievementRouter = createTRPCRouter({
           provider: input.provider,
           category: input.category,
           certificateDate: input.certificateDate,
-          certificateUrl: input.certificateUrl || null,
-          verificationUrl: input.verificationUrl || null,
-          metadata: input.metadata || null,
-          description: input.description || null,
-          notes: input.notes || null,
+          certificateUrl: input.certificateUrl ?? null,
+          verificationUrl: input.verificationUrl ?? null,
+          metadata: input.metadata ?? null,
+          description: input.description ?? null,
+          notes: input.notes ?? null,
         })
         .returning();
 
@@ -168,10 +168,8 @@ export const externalAchievementRouter = createTRPCRouter({
       // Group by provider
       const grouped = achievements.reduce((acc, achievement) => {
         const provider = achievement.provider;
-        if (!acc[provider]) {
-          acc[provider] = [];
-        }
-        acc[provider]!.push(achievement);
+        acc[provider] ??= [];
+        acc[provider].push(achievement);
         return acc;
       }, {} as Record<string, typeof achievements>);
 
@@ -196,10 +194,8 @@ export const externalAchievementRouter = createTRPCRouter({
       // Group by category
       const grouped = achievements.reduce((acc, achievement) => {
         const category = achievement.category;
-        if (!acc[category]) {
-          acc[category] = [];
-        }
-        acc[category]!.push(achievement);
+        acc[category] ??= [];
+        acc[category].push(achievement);
         return acc;
       }, {} as Record<string, typeof achievements>);
 

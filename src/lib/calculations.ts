@@ -24,7 +24,7 @@ export const calculateGPA = (grades: Grade[], scale: 4.0 | 5.0 = 4.0): number =>
   let totalCredits = 0
 
   grades.forEach(grade => {
-    let points = gradePoints[grade.letter] || 0
+    let points = gradePoints[grade.letter] ?? 0
     
     // Add honors bonus for 5.0 scale only
     if (scale === 5.0 && grade.isHonors && grade.letter !== 'F') {

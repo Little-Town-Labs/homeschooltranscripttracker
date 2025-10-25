@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { api } from "@/trpc/react";
+import type { ExternalAchievementMetadata } from "@/types/core/domain-types";
 
 interface ExternalAchievementFormProps {
   studentId: string;
@@ -49,7 +50,7 @@ export function ExternalAchievementForm({
   // Load existing data when editing
   useEffect(() => {
     if (existingAchievement) {
-      const metadata = existingAchievement.metadata as any;
+      const metadata = existingAchievement.metadata as ExternalAchievementMetadata | null;
 
       setFormData({
         title: existingAchievement.title,
@@ -57,7 +58,7 @@ export function ExternalAchievementForm({
         category: existingAchievement.category as typeof formData.category,
         certificateDate: new Date(existingAchievement.certificateDate)
           .toISOString()
-          .split("T")[0] as string,
+          .split("T")[0]!,
         certificateUrl: existingAchievement.certificateUrl ?? "",
         verificationUrl: existingAchievement.verificationUrl ?? "",
         score: metadata?.score ? String(metadata.score) : "",
@@ -73,7 +74,7 @@ export function ExternalAchievementForm({
     e.preventDefault();
 
     // Build metadata object
-    const metadata: any = {};
+    const metadata: ExternalAchievementMetadata = {};
 
     if (formData.score) {
       metadata.score = parseFloat(formData.score);

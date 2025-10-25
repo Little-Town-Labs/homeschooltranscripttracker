@@ -52,12 +52,15 @@ export const authConfig = {
      * for families who prefer not to use Google OAuth.
      */
   ],
+  // Note: Type assertion needed due to next-auth v5 beta compatibility with Drizzle adapter
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
   adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
   }) as any,
+  /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
   events: {
     async signIn({ user, isNewUser }) {
       if (isNewUser && user.email) {
@@ -77,7 +80,7 @@ export const authConfig = {
             tenantId: newTenant!.id, 
             role: "primary_guardian" 
           })
-          .where(eq(users.id, user.id as string));
+          .where(eq(users.id, user.id!));
 
         // Send welcome email (async, don't wait)
         try {

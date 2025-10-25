@@ -44,7 +44,7 @@ export function GradeForm({ courseId, studentId, onClose }: GradeFormProps) {
       const grade = existingGrades[0];
       if (grade?.grade) {
         setFormData({
-          letterGrade: grade.grade.grade as "A" | "B" | "C" | "D" | "F",
+          letterGrade: grade.grade.grade,
           semester: grade.grade.semester ?? "",
           notes: String(""),
         });

@@ -76,8 +76,8 @@ export const testScoreRouter = createTRPCRouter({
           testType: input.testType,
           testDate: input.testDate,
           scores: input.scores,
-          testCenter: input.testCenter || null,
-          notes: input.notes || null,
+          testCenter: input.testCenter ?? null,
+          notes: input.notes ?? null,
         })
         .returning();
 
@@ -150,8 +150,8 @@ export const testScoreRouter = createTRPCRouter({
       // Group by test type and find the highest score for each
       const bestScores = allScores.reduce((acc, score) => {
         const existing = acc.find(s => s.testType === score.testType);
-        const scoreValue = typeof score.scores === 'object' && score.scores ? (score.scores as any).total || 0 : 0;
-        const existingValue = typeof existing?.scores === 'object' && existing?.scores ? (existing.scores as any).total || 0 : 0;
+        const scoreValue = typeof score.scores === 'object' && score.scores ? (score.scores as TestScoreData).total ?? 0 : 0;
+        const existingValue = typeof existing?.scores === 'object' && existing?.scores ? (existing.scores as TestScoreData).total ?? 0 : 0;
         if (!existing || scoreValue > existingValue) {
           // Remove existing score of this type if found
           const filtered = acc.filter(s => s.testType !== score.testType);

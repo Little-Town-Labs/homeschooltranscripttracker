@@ -95,11 +95,11 @@ export const gradeRouter = createTRPCRouter({
           .insert(grades)
           .values({
             courseId: input.courseId,
-            semester: input.semester || "Full Year",
+            semester: input.semester ?? "Full Year",
             grade: input.letterGrade,
             gpaPoints: String(input.gpaPoints),
             percentage: null,
-            createdBy: ctx.session?.user?.id || null,
+            createdBy: ctx.session?.user?.id ?? null,
           })
           .returning();
 

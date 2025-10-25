@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 
 import { api } from "@/trpc/react";
 import { TestScoreForm } from "./test-score-form";
+import type { TestScoreData } from "@/types/core/domain-types";
 
 interface StudentTestScoresPageProps {
   studentId: string;
@@ -38,8 +39,9 @@ export function StudentTestScoresPage({ studentId }: StudentTestScoresPageProps)
     setShowForm(true);
   };
 
-  const handleDelete = async (scoreId: string, testType: string, scores: any) => {
-    const displayScore = typeof scores === 'object' && scores ? scores.total || 'N/A' : 'N/A';
+  const handleDelete = async (scoreId: string, testType: string, scores: unknown) => {
+    const scoresData = scores as TestScoreData;
+    const displayScore = scoresData?.total ?? 'N/A';
     if (window.confirm(`Are you sure you want to delete this ${testType} score of ${displayScore}?`)) {
       await deleteTestScore.mutateAsync({ id: scoreId });
     }
@@ -156,23 +158,25 @@ export function StudentTestScoresPage({ studentId }: StudentTestScoresPageProps)
           <div className="bg-white rounded-lg shadow mb-6 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Best Scores</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {bestScores.map((score) => (
-                <div key={score.id} className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-indigo-600">
-                    {typeof score.scores === 'object' && score.scores ? 
-                      (score.scores as any).total || 'N/A' : 'N/A'}
-                  </div>
-                  <div className="text-sm font-medium text-gray-900">{score.testType}</div>
-                  <div className="text-xs text-gray-500">
-                    {new Date(score.testDate).toLocaleDateString()}
-                  </div>
-                  {typeof score.scores === 'object' && score.scores && (score.scores as any).percentile && (
-                    <div className="text-xs text-gray-600">
-                      {(score.scores as any).percentile}th percentile
+              {bestScores.map((score) => {
+                const scoresData = score.scores as TestScoreData;
+                return (
+                  <div key={score.id} className="text-center p-4 bg-gray-50 rounded-lg">
+                    <div className="text-2xl font-bold text-indigo-600">
+                      {scoresData?.total ?? 'N/A'}
                     </div>
-                  )}
-                </div>
-              ))}
+                    <div className="text-sm font-medium text-gray-900">{score.testType}</div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(score.testDate).toLocaleDateString()}
+                    </div>
+                    {scoresData?.percentile && (
+                      <div className="text-xs text-gray-600">
+                        {scoresData.percentile}th percentile
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -207,26 +211,28 @@ export function StudentTestScoresPage({ studentId }: StudentTestScoresPageProps)
                         <tbody>
                           {scores
                             .sort((a, b) => new Date(b.testDate).getTime() - new Date(a.testDate).getTime())
-                            .map((score) => (
-                              <tr key={score.id} className="border-b border-gray-100">
-                                <td className="py-3 px-4 text-gray-900">
-                                  {new Date(score.testDate).toLocaleDateString()}
-                                </td>
-                                <td className="py-3 px-4">
-                                  <span className="font-semibold text-gray-900">
-                                    {typeof score.scores === 'object' && score.scores ? (score.scores as any).total || 'N/A' : 'N/A'}
-                                    {typeof score.scores === 'object' && score.scores && (score.scores as any).maxScore && (
-                                      <span className="text-gray-500"> / {(score.scores as any).maxScore}</span>
-                                    )}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-4 text-gray-600">
-                                  {typeof score.scores === 'object' && score.scores && (score.scores as any).percentile ? `${(score.scores as any).percentile}%` : "—"}
-                                </td>
-                                <td className="py-3 px-4 text-gray-600">
-                                  {typeof score.scores === 'object' && score.scores && Object.keys(score.scores as object).filter(key => !['total', 'maxScore', 'percentile'].includes(key)).length > 0 ? (
-                                    <div className="space-y-1">
-                                      {Object.entries(score.scores as object).filter(([key]) => !['total', 'maxScore', 'percentile'].includes(key)).map(([section, subscore]) => (
+                            .map((score) => {
+                              const scoresData = score.scores as TestScoreData;
+                              return (
+                                <tr key={score.id} className="border-b border-gray-100">
+                                  <td className="py-3 px-4 text-gray-900">
+                                    {new Date(score.testDate).toLocaleDateString()}
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    <span className="font-semibold text-gray-900">
+                                      {scoresData?.total ?? 'N/A'}
+                                      {scoresData?.maxScore && (
+                                        <span className="text-gray-500"> / {scoresData.maxScore}</span>
+                                      )}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4 text-gray-600">
+                                    {scoresData?.percentile ? `${scoresData.percentile}%` : "—"}
+                                  </td>
+                                  <td className="py-3 px-4 text-gray-600">
+                                    {scoresData && Object.keys(scoresData).filter(key => !['total', 'maxScore', 'percentile'].includes(key)).length > 0 ? (
+                                      <div className="space-y-1">
+                                        {Object.entries(scoresData).filter(([key]) => !['total', 'maxScore', 'percentile'].includes(key)).map(([section, subscore]) => (
                                         <div key={section} className="text-xs">
                                           {section}: {String(subscore)}
                                         </div>
@@ -263,7 +269,8 @@ export function StudentTestScoresPage({ studentId }: StudentTestScoresPageProps)
                                   </div>
                                 </td>
                               </tr>
-                            ))}
+                              );
+                            })}
                         </tbody>
                       </table>
                     </div>

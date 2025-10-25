@@ -168,13 +168,14 @@ const tenantMiddleware = t.middleware(async ({ ctx, next }) => {
 /**
  * Role-based authorization middleware factory
  */
-const requireRole = (allowedRoles: UserRole[]) => 
+const requireRole = (allowedRoles: UserRole[]) =>
   t.middleware(async ({ ctx, next }) => {
-    const userRole = (ctx as any).userRole;
-    if (!userRole || !allowedRoles.includes(userRole as UserRole)) {
-      throw new TRPCError({ 
-        code: "FORBIDDEN", 
-        message: `Requires one of: ${allowedRoles.join(", ")}` 
+    // Note: userRole is added by tenantMiddleware, which always runs before this
+    const userRole = (ctx as { userRole?: UserRole }).userRole;
+    if (!userRole || !allowedRoles.includes(userRole)) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: `Requires one of: ${allowedRoles.join(", ")}`
       });
     }
     return next();

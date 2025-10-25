@@ -469,7 +469,7 @@ function StudentProgressCard({ student }: { student: DashboardStudentProgress })
         </div>
         <div className="text-center p-3 bg-gray-50 rounded">
           <div className="text-lg font-semibold text-gray-900">
-            {student.academics.completionRate.toFixed(0)}%
+            {Number(student.academics.completionRate).toFixed(0)}%
           </div>
           <div className="text-sm text-gray-600">Completion Rate</div>
         </div>
@@ -480,20 +480,20 @@ function StudentProgressCard({ student }: { student: DashboardStudentProgress })
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm font-medium text-gray-700">Graduation Progress</span>
           <span className="text-sm text-gray-600">
-            {student.graduation.progress.toFixed(0)}% Complete
+            {Number(student.graduation.progress).toFixed(0)}% Complete
           </span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div
             className={`h-2 rounded-full ${
-              student.graduation.meetsRequirements ? "bg-green-500" : "bg-blue-500"
+              Boolean(student.graduation.meetsRequirements) ? "bg-green-500" : "bg-blue-500"
             }`}
-            style={{ width: `${Math.min(100, student.graduation.progress)}%` }}
+            style={{ width: `${Math.min(100, Number(student.graduation.progress))}%` }}
           ></div>
         </div>
-        {student.graduation.creditsRemaining > 0 && (
+        {Number(student.graduation.creditsRemaining) > 0 && (
           <p className="text-sm text-gray-600 mt-1">
-            {student.graduation.creditsRemaining} credits remaining
+            {Number(student.graduation.creditsRemaining)} credits remaining
           </p>
         )}
       </div>
