@@ -5,13 +5,14 @@ import {
   createTRPCRouter,
   guardianProcedure,
 } from "@/server/api/trpc";
-import { 
-  students, 
-  courses, 
-  grades, 
+import {
+  students,
+  courses,
+  grades,
   testScores,
+  externalAchievements,
   tenants,
-  type Grade 
+  type Grade
 } from "@/server/db/schema";
 
 export const dashboardRouter = createTRPCRouter({
@@ -42,6 +43,11 @@ export const dashboardRouter = createTRPCRouter({
         .select({ count: count() })
         .from(testScores)
         .where(eq(testScores.tenantId, ctx.tenantId));
+
+      const achievementCount = await ctx.db
+        .select({ count: count() })
+        .from(externalAchievements)
+        .where(eq(externalAchievements.tenantId, ctx.tenantId));
 
       // Get recent activity
       const recentGrades = await ctx.db
@@ -74,6 +80,7 @@ export const dashboardRouter = createTRPCRouter({
           courses: courseCount[0]?.count ?? 0,
           grades: gradeCount[0]?.count ?? 0,
           testScores: testScoreCount[0]?.count ?? 0,
+          achievements: achievementCount[0]?.count ?? 0,
         },
         recentActivity: {
           grades: recentGrades,
@@ -172,6 +179,17 @@ export const dashboardRouter = createTRPCRouter({
         const totalEarned = Object.values(requirements).reduce((sum, req) => sum + req.earned, 0);
         const graduationProgress = totalRequired > 0 ? (totalEarned / totalRequired) * 100 : 0;
 
+        // Get achievement count for this student
+        const studentAchievements = await ctx.db
+          .select({ count: count() })
+          .from(externalAchievements)
+          .where(
+            and(
+              eq(externalAchievements.tenantId, ctx.tenantId),
+              eq(externalAchievements.studentId, student.id)
+            )
+          );
+
         progressData.push({
           student: {
             id: student.id,
@@ -186,6 +204,7 @@ export const dashboardRouter = createTRPCRouter({
             totalCredits,
             completedCredits,
             completionRate: totalCourses > 0 ? (completedCourses / totalCourses) * 100 : 0,
+            achievements: studentAchievements[0]?.count ?? 0,
           },
           graduation: {
             progress: Math.min(100, graduationProgress),

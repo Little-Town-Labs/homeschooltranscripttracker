@@ -14,7 +14,12 @@ import {
   boolean,
   date,
 } from "drizzle-orm/pg-core";
-import { type AdapterAccount } from "next-auth/adapters";
+
+// Type definition for NextAuth adapter account
+// Avoiding direct import to prevent drizzle-kit compatibility issues
+type AdapterAccount = {
+  type: "oauth" | "oidc" | "email" | "webauthn";
+};
 
 /**
  * Multi-tenant database schema for Homeschool Transcript Tracker
@@ -78,6 +83,14 @@ export const testTypeEnum = pgEnum("test_type", [
 ]);
 
 export const gpaScaleEnum = pgEnum("gpa_scale", ["4.0", "5.0"]);
+
+export const achievementCategoryEnum = pgEnum("achievement_category", [
+  "Online Course",
+  "Certification",
+  "Badge",
+  "Award",
+  "Other",
+]);
 
 // ============================================================================
 // CORE TENANT & USER TABLES
@@ -277,24 +290,59 @@ export const testScores = createTable("test_score", {
   id: uuid("id").primaryKey().defaultRandom(),
   tenantId: uuid("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
   studentId: uuid("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
-  
+
   // Test information
   testType: testTypeEnum("test_type").notNull(),
   testDate: date("test_date").notNull(),
-  
+
   // Flexible score storage (JSON for different test formats)
   scores: json("scores").notNull(), // e.g., {"math": 720, "ebrw": 680, "total": 1400}
-  
+
   // Additional information
   testCenter: varchar("test_center", { length: 255 }),
   notes: text("notes"),
-  
+
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
 }, (t) => [
   index("test_score_tenant_idx").on(t.tenantId),
   index("test_score_student_idx").on(t.studentId),
   index("test_score_type_date_idx").on(t.testType, t.testDate),
+]);
+
+/**
+ * External achievements and certifications
+ * Track online courses, certifications, badges, and awards from external providers
+ */
+export const externalAchievements = createTable("external_achievement", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  tenantId: uuid("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
+  studentId: uuid("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
+
+  // Achievement metadata
+  title: varchar("title", { length: 255 }).notNull(),
+  provider: varchar("provider", { length: 255 }).notNull(), // e.g., "Coursera", "Udemy", "edX"
+  category: achievementCategoryEnum("category").notNull(),
+
+  // Certificate/completion details
+  certificateDate: date("certificate_date").notNull(),
+  certificateUrl: varchar("certificate_url", { length: 500 }),
+  verificationUrl: varchar("verification_url", { length: 500 }),
+
+  // Flexible metadata storage for scores, duration, skills, etc.
+  metadata: json("metadata"), // e.g., {"score": 95, "duration": "12 weeks", "skills": ["Python", "ML"]}
+
+  // Additional information
+  description: text("description"),
+  notes: text("notes"),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
+}, (t) => [
+  index("achievement_tenant_idx").on(t.tenantId),
+  index("achievement_student_idx").on(t.studentId),
+  index("achievement_provider_idx").on(t.provider),
+  index("achievement_category_idx").on(t.category),
 ]);
 
 // ============================================================================
@@ -373,6 +421,7 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
   students: many(students),
   courses: many(courses),
   testScores: many(testScores),
+  externalAchievements: many(externalAchievements),
   invitations: many(invitations),
   auditLogs: many(auditLogs),
 }));
@@ -391,6 +440,7 @@ export const studentsRelations = relations(students, ({ one, many }) => ({
   user: one(users, { fields: [students.userId], references: [users.id] }),
   courses: many(courses),
   testScores: many(testScores),
+  externalAchievements: many(externalAchievements),
   invitations: many(invitations),
 }));
 
@@ -408,6 +458,11 @@ export const gradesRelations = relations(grades, ({ one }) => ({
 export const testScoresRelations = relations(testScores, ({ one }) => ({
   tenant: one(tenants, { fields: [testScores.tenantId], references: [tenants.id] }),
   student: one(students, { fields: [testScores.studentId], references: [students.id] }),
+}));
+
+export const externalAchievementsRelations = relations(externalAchievements, ({ one }) => ({
+  tenant: one(tenants, { fields: [externalAchievements.tenantId], references: [tenants.id] }),
+  student: one(students, { fields: [externalAchievements.studentId], references: [students.id] }),
 }));
 
 export const invitationsRelations = relations(invitations, ({ one }) => ({
@@ -466,3 +521,4 @@ export type Grade = typeof gradeEnum.enumValues[number];
 export type CourseLevel = typeof courseLevelEnum.enumValues[number];
 export type TestType = typeof testTypeEnum.enumValues[number];
 export type GpaScale = typeof gpaScaleEnum.enumValues[number];
+export type AchievementCategory = typeof achievementCategoryEnum.enumValues[number];

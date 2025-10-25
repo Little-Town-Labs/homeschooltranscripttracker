@@ -7,15 +7,16 @@
  * Follows EPIC-TSA-001 Unified Type System guidelines from .cursor/rules/core.mdc
  */
 
-import type { 
-  tenants, 
-  users, 
-  students, 
-  courses, 
-  grades, 
+import type {
+  tenants,
+  users,
+  students,
+  courses,
+  grades,
   testScores,
+  externalAchievements,
   invitations,
-  auditLogs 
+  auditLogs
 } from '@/server/db/schema';
 
 // ============================================================================
@@ -41,6 +42,9 @@ export type NewGrade = typeof grades.$inferInsert;
 export type TestScore = typeof testScores.$inferSelect;
 export type NewTestScore = typeof testScores.$inferInsert;
 
+export type ExternalAchievement = typeof externalAchievements.$inferSelect;
+export type NewExternalAchievement = typeof externalAchievements.$inferInsert;
+
 export type Invitation = typeof invitations.$inferSelect;
 export type NewInvitation = typeof invitations.$inferInsert;
 
@@ -55,9 +59,10 @@ export type UserRole = "super_admin" | "support_admin" | "primary_guardian" | "g
 export type SubscriptionStatus = "trial" | "active" | "past_due" | "cancelled" | "suspended";
 export type GradeValue = "A" | "B" | "C" | "D" | "F";
 export type CourseLevel = "Regular" | "Honors" | "Advanced Placement" | "Dual Enrollment" | "College Prep";
-export type Subject = "English" | "Mathematics" | "Science" | "Social Studies" | "Foreign Language" | "Fine Arts" | "Physical Education" | "Career/Technical Education" | "Elective" | "Other";
+export type Subject = "English" | "Mathematics" | "Science" | "Computer Science" | "Social Studies" | "Foreign Language" | "Fine Arts" | "Physical Education" | "Career/Technical Education" | "Elective" | "Other";
 export type TestType = "SAT" | "ACT" | "PSAT" | "AP" | "CLEP" | "SAT Subject" | "State Assessment" | "Other";
 export type GpaScale = "4.0" | "5.0";
+export type AchievementCategory = "Online Course" | "Certification" | "Badge" | "Award" | "Other";
 
 // ============================================================================
 // BUSINESS LOGIC TYPES
@@ -69,6 +74,17 @@ export interface TestScoreData {
   maxScore?: number;
   percentile?: number;
   [key: string]: number | undefined; // For subscores like math, ebrw, etc.
+}
+
+// External achievement metadata structure (JSON field)
+export interface ExternalAchievementMetadata {
+  score?: number;
+  passingScore?: number;
+  duration?: string; // e.g., "12 weeks", "40 hours"
+  skills?: string[]; // e.g., ["Python", "Machine Learning", "TensorFlow"]
+  courseCode?: string;
+  instructor?: string;
+  [key: string]: string | number | string[] | undefined; // Allow extensibility
 }
 
 // GPA calculation result
@@ -120,7 +136,7 @@ export class DomainError extends Error {
   constructor(
     message: string,
     public code: string,
-    public statusCode: number = 400
+    public statusCode = 400
   ) {
     super(message);
     this.name = 'DomainError';
@@ -142,17 +158,160 @@ export class NotFoundError extends DomainError {
 }
 
 export class UnauthorizedError extends DomainError {
-  constructor(message: string = 'Unauthorized access') {
+  constructor(message = 'Unauthorized access') {
     super(message, 'UNAUTHORIZED', 401);
     this.name = 'UnauthorizedError';
   }
 }
 
 export class ForbiddenError extends DomainError {
-  constructor(message: string = 'Insufficient permissions') {
+  constructor(message = 'Insufficient permissions') {
     super(message, 'FORBIDDEN', 403);
     this.name = 'ForbiddenError';
   }
+}
+
+// ============================================================================
+// BILLING TYPES
+// ============================================================================
+
+export interface BillingSubscription {
+  id: string;
+  status: string;
+  currentPeriodStart: Date;
+  currentPeriodEnd: Date;
+  cancelAtPeriodEnd: boolean;
+  items: unknown[];
+}
+
+export interface BillingStatus {
+  tenant: {
+    id: string;
+    name: string;
+    email: string | null;
+    customerId: string | null;
+    trialEndsAt: Date | null;
+  };
+  subscription: BillingSubscription | null;
+  trial: {
+    isActive: boolean;
+    daysRemaining: number;
+    endsAt: Date | null;
+  };
+  students: {
+    count: number;
+    active: Array<{
+      id: string;
+      firstName: string;
+      lastName: string;
+    }>;
+  };
+  pricing: {
+    basePrice: number;
+    studentCount: number;
+    discountPercentage: number;
+    monthlyTotal: number;
+    annualTotal: number;
+    savings: {
+      multiStudent: number;
+      annual: number;
+    };
+  };
+  features: {
+    canGenerateTranscripts: boolean;
+    hasWatermark: boolean;
+    maxStudents: number | null;
+  };
+}
+
+export interface BillingHistory {
+  invoices: Array<{
+    id: string | undefined;
+    number: string | null;
+    status: string | null;
+    amountPaid: number;
+    amountDue: number;
+    currency: string;
+    created: Date;
+    periodStart: Date | null;
+    periodEnd: Date | null;
+    invoicePdf: string | null | undefined;
+    hostedInvoiceUrl: string | null | undefined;
+  }>;
+  paymentMethods: Array<{
+    id: string;
+    brand: string | undefined;
+    last4: string | undefined;
+    expMonth: number | undefined;
+    expYear: number | undefined;
+  }>;
+}
+
+// ============================================================================
+// DASHBOARD TYPES
+// ============================================================================
+
+export interface DashboardRecentActivity {
+  grades: Array<{
+    grade: Grade;
+    course: Course;
+    student: Student;
+  }>;
+  testScores: Array<{
+    testScore: TestScore;
+    student: Student;
+  }>;
+}
+
+export interface DashboardUpcomingTask {
+  type: string;
+  priority: string;
+  title: string;
+  description: string;
+  studentId: string;
+  studentName: string;
+  courseId: string | null;
+  dueDate: Date | null;
+}
+
+export interface DashboardStudentProgress {
+  student: {
+    id: string;
+    name: string;
+    graduationYear: number;
+    gpaScale: string | null;
+  };
+  academics: {
+    gpa: number;
+    totalCredits: number;
+    completedCredits: number;
+    totalCourses: number;
+    completedCourses: number;
+    completionRate: number;
+    achievements: number;
+  };
+  graduation: {
+    progress: number;
+    requirements: Record<string, { required: number; earned: number }>;
+    meetsRequirements: boolean;
+    creditsRemaining: number;
+  };
+}
+
+export interface DashboardAcademicTrends {
+  gpaByYear: Array<{
+    year: string;
+    gpa: number;
+    credits: number;
+    studentCount: number;
+  }>;
+  gradeDistribution: Record<string, number>;
+  subjectPerformance: Array<{
+    subject: string;
+    courseCount: number;
+    averageGPA: number;
+    totalCredits: number;
+  }>;
 }
 
 // ============================================================================
@@ -194,5 +353,18 @@ export interface TestScoreFormData {
   testDate: string; // ISO date string
   scores: TestScoreData;
   testCenter?: string;
+  notes?: string;
+}
+
+export interface ExternalAchievementFormData {
+  studentId: string;
+  title: string;
+  provider: string;
+  category: AchievementCategory;
+  certificateDate: string; // ISO date string
+  certificateUrl?: string;
+  verificationUrl?: string;
+  metadata?: ExternalAchievementMetadata;
+  description?: string;
   notes?: string;
 }

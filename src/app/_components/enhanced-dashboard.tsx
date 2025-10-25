@@ -5,6 +5,7 @@ import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 
 import { api } from "@/trpc/react";
+import type { DashboardRecentActivity, DashboardUpcomingTask, DashboardStudentProgress } from "@/types/core/domain-types";
 
 export function EnhancedDashboard() {
   const { data: session } = useSession();
@@ -350,7 +351,7 @@ function StatCard({ title, value, icon, color }: StatCardProps) {
   );
 }
 
-function RecentActivity({ activity }: { activity?: any }) {
+function RecentActivity({ activity }: { activity?: DashboardRecentActivity }) {
   return (
     <div className="bg-white rounded-lg shadow">
       <div className="px-6 py-4 border-b border-gray-200">
@@ -359,28 +360,28 @@ function RecentActivity({ activity }: { activity?: any }) {
       <div className="p-6">
         {activity && (activity.grades.length > 0 || activity.testScores.length > 0) ? (
           <div className="space-y-4">
-            {activity.grades.slice(0, 3).map((item: any, index: number) => (
+            {activity.grades.slice(0, 3).map((item, index) => (
               <div key={index} className="flex items-center space-x-3">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <div className="flex-1">
                   <p className="text-sm text-gray-900">
                     <span className="font-medium">{item.student.firstName} {item.student.lastName}</span> received a{" "}
-                    <span className="font-semibold text-green-600">{item.grade.letterGrade}</span> in{" "}
-                    <span className="font-medium">{item.course.courseName}</span>
+                    <span className="font-semibold text-green-600">{item.grade.grade}</span> in{" "}
+                    <span className="font-medium">{item.course.name}</span>
                   </p>
                   <p className="text-xs text-gray-500">
-                    {new Date(item.grade.updatedAt).toLocaleDateString()}
+                    {new Date(item.grade.updatedAt ?? new Date()).toLocaleDateString()}
                   </p>
                 </div>
               </div>
             ))}
-            {activity.testScores.slice(0, 2).map((item: any, index: number) => (
+            {activity.testScores.slice(0, 2).map((item, index) => (
               <div key={index} className="flex items-center space-x-3">
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                 <div className="flex-1">
                   <p className="text-sm text-gray-900">
                     <span className="font-medium">{item.student.firstName} {item.student.lastName}</span> scored{" "}
-                    <span className="font-semibold text-blue-600">{item.testScore.score}</span> on{" "}
+                    <span className="font-semibold text-blue-600">{typeof item.testScore.scores === 'object' && item.testScore.scores && 'total' in item.testScore.scores ? (item.testScore.scores as {total: number}).total : 'N/A'}</span> on{" "}
                     <span className="font-medium">{item.testScore.testType}</span>
                   </p>
                   <p className="text-xs text-gray-500">
@@ -398,7 +399,7 @@ function RecentActivity({ activity }: { activity?: any }) {
   );
 }
 
-function UpcomingTasks({ tasks }: { tasks?: any[] }) {
+function UpcomingTasks({ tasks }: { tasks?: DashboardUpcomingTask[] }) {
   return (
     <div className="bg-white rounded-lg shadow">
       <div className="px-6 py-4 border-b border-gray-200">
@@ -433,7 +434,7 @@ function UpcomingTasks({ tasks }: { tasks?: any[] }) {
   );
 }
 
-function StudentProgressCard({ student }: { student: any }) {
+function StudentProgressCard({ student }: { student: DashboardStudentProgress }) {
   return (
     <div className="border border-gray-200 rounded-lg p-6">
       <div className="flex justify-between items-start mb-4">

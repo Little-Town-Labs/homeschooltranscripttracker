@@ -6,6 +6,7 @@ import { api } from '@/trpc/react';
 interface PdfGenerationOptions {
   format: 'standard' | 'detailed' | 'college-prep';
   includeWatermark?: boolean;
+  includeAchievements?: boolean;
 }
 
 export function usePdfGenerator() {
@@ -37,6 +38,7 @@ export function usePdfGenerator() {
         studentId,
         format: options.format,
         includeWatermark: options.includeWatermark ?? false,
+        includeAchievements: options.includeAchievements ?? true,
       });
 
       // Convert base64 to blob

@@ -52,7 +52,7 @@ export const billingRouter = createTRPCRouter({
     const studentCount = activeStudents.length;
 
     // Get current subscription
-    let subscription = null;
+    let subscription: Stripe.Subscription | null = null;
     if (currentTenant.subscriptionId) {
       try {
         subscription = await stripe.subscriptions.retrieve(currentTenant.subscriptionId);
@@ -98,7 +98,7 @@ export const billingRouter = createTRPCRouter({
         currentPeriodStart: new Date((subscription as any).current_period_start * 1000),
         currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
         cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
-        items: (subscription as any).items?.data || [],
+        items: subscription.items?.data || [],
       } : null,
       trial: {
         isActive: isInTrial,

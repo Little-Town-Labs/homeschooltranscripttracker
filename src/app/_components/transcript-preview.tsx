@@ -12,6 +12,7 @@ interface TranscriptPreviewProps {
 
 export function TranscriptPreview({ studentId, format, onClose }: TranscriptPreviewProps) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [includeAchievements, setIncludeAchievements] = useState(true);
 
   // Fetch transcript data
   const { data: transcriptData, isLoading } = api.transcript.getTranscriptData.useQuery({
@@ -36,6 +37,7 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
       const pdfBlob = await generatePdf(studentId, {
         format: format as 'standard' | 'detailed' | 'college-prep',
         includeWatermark: false, // TODO: Check subscription status
+        includeAchievements,
       });
       
       // Create download link
@@ -104,14 +106,15 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header with actions */}
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center print:hidden">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Transcript Preview</h2>
-            <p className="text-sm text-gray-600">
-              {currentFormat?.name} - {student.firstName} {student.lastName}
-            </p>
-          </div>
-          <div className="flex space-x-3">
+        <div className="px-6 py-4 border-b border-gray-200 print:hidden">
+          <div className="flex justify-between items-start mb-3">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Transcript Preview</h2>
+              <p className="text-sm text-gray-600">
+                {currentFormat?.name} - {student.firstName} {student.lastName}
+              </p>
+            </div>
+            <div className="flex space-x-3">
             <button
               onClick={handlePrint}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
@@ -131,6 +134,22 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
             >
               Close
             </button>
+          </div>
+          </div>
+
+          {/* PDF Options */}
+          <div className="flex items-center space-x-4">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={includeAchievements}
+                onChange={(e) => setIncludeAchievements(e.target.checked)}
+                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+              />
+              <span className="ml-2 text-sm text-gray-700">
+                Include External Achievements & Certifications
+              </span>
+            </label>
           </div>
         </div>
 

@@ -50,6 +50,7 @@ export const studentRouter = createTRPCRouter({
         dateOfBirth: z.string().optional(),
         graduationYear: z.number().int().min(2020).max(2040),
         gpaScale: z.enum(gpaScaleEnum.enumValues).default("4.0"),
+        minCreditsForGraduation: z.number().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -61,6 +62,7 @@ export const studentRouter = createTRPCRouter({
           dateOfBirth: input.dateOfBirth ?? null,
           graduationYear: input.graduationYear,
           gpaScale: input.gpaScale,
+          minCreditsForGraduation: input.minCreditsForGraduation?.toString() ?? "24.0",
           tenantId: ctx.tenantId,
         })
         .returning();
@@ -82,14 +84,18 @@ export const studentRouter = createTRPCRouter({
         dateOfBirth: z.string().optional(),
         graduationYear: z.number().int().min(2020).max(2040).optional(),
         gpaScale: z.enum(gpaScaleEnum.enumValues).optional(),
+        minCreditsForGraduation: z.number().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...updateData } = input;
+      const { id, minCreditsForGraduation, ...updateData } = input;
 
       const [updatedStudent] = await ctx.db
         .update(students)
-        .set(updateData)
+        .set({
+          ...updateData,
+          ...(minCreditsForGraduation !== undefined && { minCreditsForGraduation: minCreditsForGraduation.toString() }),
+        })
         .where(and(eq(students.id, id), eq(students.tenantId, ctx.tenantId)))
         .returning();
 

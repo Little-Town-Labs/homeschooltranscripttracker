@@ -5,6 +5,7 @@ import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 
 import { api } from "@/trpc/react";
+import type { BillingStatus, BillingHistory } from "@/types/core/domain-types";
 
 export function BillingPage() {
   const { data: session } = useSession();
@@ -220,7 +221,7 @@ export function BillingPage() {
 
 // Helper Components
 interface CurrentStatusCardProps {
-  billingStatus: any;
+  billingStatus: BillingStatus;
   onManageBilling: () => void;
   onCancel: () => void;
   onReactivate: () => void;
@@ -322,7 +323,7 @@ function CurrentStatusCard({ billingStatus, onManageBilling, onCancel, onReactiv
 }
 
 interface PricingPlansProps {
-  billingStatus: any;
+  billingStatus: BillingStatus;
   selectedPlan: "monthly" | "annual";
   onPlanChange: (plan: "monthly" | "annual") => void;
   onSubscribe: () => void;
@@ -439,7 +440,7 @@ function PricingPlans({ billingStatus, selectedPlan, onPlanChange, onSubscribe, 
   );
 }
 
-function BillingHistory({ history }: { history: any }) {
+function BillingHistory({ history }: { history: BillingHistory }) {
   return (
     <div className="bg-white rounded-lg shadow">
       <div className="px-6 py-4 border-b border-gray-200">
@@ -459,10 +460,10 @@ function BillingHistory({ history }: { history: any }) {
               </tr>
             </thead>
             <tbody>
-              {history.invoices.map((invoice: any) => (
-                <tr key={invoice.id} className="border-b border-gray-100">
+              {history.invoices.map((invoice) => (
+                <tr key={invoice.id ?? 'unknown'} className="border-b border-gray-100">
                   <td className="py-3 px-4 text-gray-900">
-                    {invoice.number || invoice.id.slice(-8)}
+                    {invoice.number ?? invoice.id?.slice(-8) ?? 'N/A'}
                   </td>
                   <td className="py-3 px-4 text-gray-600">
                     {invoice.created.toLocaleDateString()}
@@ -501,7 +502,7 @@ function BillingHistory({ history }: { history: any }) {
           <div className="mt-6 pt-6 border-t border-gray-200">
             <h3 className="font-medium text-gray-900 mb-3">Payment Methods</h3>
             <div className="space-y-2">
-              {history.paymentMethods.map((pm: any) => (
+              {history.paymentMethods.map((pm) => (
                 <div key={pm.id} className="flex items-center space-x-3">
                   <div className="w-8 h-5 bg-gray-100 rounded flex items-center justify-center">
                     <span className="text-xs font-medium text-gray-600 uppercase">

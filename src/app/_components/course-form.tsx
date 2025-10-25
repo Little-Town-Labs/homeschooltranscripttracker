@@ -13,7 +13,7 @@ export function CourseForm({ courseId, preselectedStudentId, onClose }: CourseFo
   const [formData, setFormData] = useState({
     studentId: preselectedStudentId ?? "",
     name: "",
-    subject: "" as "English" | "Mathematics" | "Science" | "Social Studies" | "Foreign Language" | "Fine Arts" | "Physical Education" | "Career/Technical Education" | "Elective" | "Other" | "",
+    subject: "" as "English" | "Mathematics" | "Science" | "Computer Science" | "Social Studies" | "Foreign Language" | "Fine Arts" | "Physical Education" | "Career/Technical Education" | "Elective" | "Other" | "",
     level: "Regular" as "Regular" | "Honors" | "Advanced Placement",
     creditHours: 1,
     academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,

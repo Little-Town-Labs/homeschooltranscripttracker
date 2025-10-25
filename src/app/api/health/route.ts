@@ -14,14 +14,14 @@ export async function GET() {
 
     // Test database connection
     const dbResult = await db.execute(sql`SELECT 1 as test`);
-    
+
     return NextResponse.json({
       status: "healthy",
       timestamp: new Date().toISOString(),
       environment: envCheck,
       database: {
         connected: true,
-        testQuery: dbResult[0] ?? null,
+        testQuery: dbResult.rows?.[0] ?? null,
       }
     });
   } catch (error) {
