@@ -26,9 +26,9 @@ export function LandingPage() {
       <section className="flex-1 flex items-center justify-center px-6 py-16">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-            Track Academic Progress,
+            <span className="text-indigo-600">Homeschool Transcript</span>
             <br />
-            <span className="text-indigo-600">Generate Transcripts</span>
+            Management System
           </h1>
           
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
