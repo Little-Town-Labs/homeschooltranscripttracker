@@ -18,7 +18,8 @@
       "Bash(grep:*)",
       "Bash(awk:*)",
       "Read(///**)",
-      "Bash(cut:*)"
+      "Bash(cut:*)",
+      "Bash(git mv:*)"
     ],
     "deny": []
   }
