@@ -65,7 +65,7 @@ export function StudentExternalAchievements({
     ) ?? {};
 
   return (
-    <div>
+    <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
       {/* Header with Add Button */}
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -302,6 +302,6 @@ export function StudentExternalAchievements({
           onClose={handleFormClose}
         />
       )}
-    </div>
+    </main>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -15,7 +14,6 @@ interface StudentTestScoresPageProps {
 
 export function StudentTestScoresPage({ studentId }: StudentTestScoresPageProps) {
   const router = useRouter();
-  const { data: session } = useSession();
   const [showForm, setShowForm] = useState(false);
   const [editingScore, setEditingScore] = useState<string | null>(null);
 
@@ -65,65 +63,7 @@ export function StudentTestScoresPage({ studentId }: StudentTestScoresPageProps)
   }, {} as Record<string, typeof testScores>) ?? {};
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <div className="h-8 w-8 rounded bg-indigo-600"></div>
-              <span className="text-xl font-bold text-gray-900">
-                Homeschool Transcript Tracker
-              </span>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
-                Welcome, {session?.user?.name}
-              </span>
-              <button
-                onClick={() => signOut()}
-                className="text-sm text-gray-500 hover:text-gray-700"
-              >
-                Sign Out
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Navigation */}
-      <nav className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
-            <Link
-              href="/"
-              className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/students"
-              className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            >
-              Students
-            </Link>
-            <Link
-              href="/courses"
-              className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            >
-              Courses
-            </Link>
-            <Link
-              href="/transcripts"
-              className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            >
-              Transcripts
-            </Link>
-          </div>
-        </div>
-      </nav>
-
+    <>
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         {/* Student Header */}
@@ -307,6 +247,6 @@ export function StudentTestScoresPage({ studentId }: StudentTestScoresPageProps)
           onClose={handleFormClose}
         />
       )}
-    </div>
+    </>
   );
 }
