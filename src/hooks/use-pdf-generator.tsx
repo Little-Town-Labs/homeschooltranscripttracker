@@ -7,6 +7,7 @@ interface PdfGenerationOptions {
   format: 'standard' | 'detailed' | 'college-prep';
   includeWatermark?: boolean;
   includeAchievements?: boolean;
+  includeActivities?: boolean;
 }
 
 export function usePdfGenerator() {
@@ -39,6 +40,7 @@ export function usePdfGenerator() {
         format: options.format,
         includeWatermark: options.includeWatermark ?? false,
         includeAchievements: options.includeAchievements ?? true,
+        includeActivities: options.includeActivities ?? true,
       });
 
       // Convert base64 to blob

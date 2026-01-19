@@ -31,6 +31,11 @@ export default function StudentLayout({ children, params }: StudentLayoutProps) 
       href: `/students/${id}/achievements`,
       current: pathname === `/students/${id}/achievements`,
     },
+    {
+      name: "Activities",
+      href: `/students/${id}/activities`,
+      current: pathname === `/students/${id}/activities`,
+    },
   ];
 
   return (

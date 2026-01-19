@@ -15,6 +15,7 @@ import type {
   grades,
   testScores,
   externalAchievements,
+  studentActivities,
   invitations,
   auditLogs
 } from '@/server/db/schema';
@@ -45,6 +46,9 @@ export type NewTestScore = typeof testScores.$inferInsert;
 export type ExternalAchievement = typeof externalAchievements.$inferSelect;
 export type NewExternalAchievement = typeof externalAchievements.$inferInsert;
 
+export type StudentActivity = typeof studentActivities.$inferSelect;
+export type NewStudentActivity = typeof studentActivities.$inferInsert;
+
 export type Invitation = typeof invitations.$inferSelect;
 export type NewInvitation = typeof invitations.$inferInsert;
 
@@ -63,6 +67,7 @@ export type Subject = "English" | "Mathematics" | "Science" | "Computer Science"
 export type TestType = "SAT" | "ACT" | "PSAT" | "AP" | "CLEP" | "SAT Subject" | "State Assessment" | "Other";
 export type GpaScale = "4.0" | "5.0";
 export type AchievementCategory = "Online Course" | "Certification" | "Badge" | "Award" | "Other";
+export type ActivityCategory = "Sports" | "Scouting/Youth Groups" | "Community Service" | "Academic Clubs" | "Arts/Performance" | "Leadership" | "Other";
 
 // ============================================================================
 // BUSINESS LOGIC TYPES
@@ -84,6 +89,15 @@ export interface ExternalAchievementMetadata {
   skills?: string[]; // e.g., ["Python", "Machine Learning", "TensorFlow"]
   courseCode?: string;
   instructor?: string;
+  [key: string]: string | number | string[] | undefined; // Allow extensibility
+}
+
+// Student activity metadata structure (JSON field)
+export interface StudentActivityMetadata {
+  awards?: string[]; // e.g., ["Black Belt", "Eagle Scout", "MVP"]
+  hours?: number; // Total hours (for community service)
+  competitions?: string[]; // Competitions/events participated in
+  achievements?: string[]; // Other achievements within activity
   [key: string]: string | number | string[] | undefined; // Allow extensibility
 }
 
@@ -365,6 +379,19 @@ export interface ExternalAchievementFormData {
   certificateUrl?: string;
   verificationUrl?: string;
   metadata?: ExternalAchievementMetadata;
+  description?: string;
+  notes?: string;
+}
+
+export interface StudentActivityFormData {
+  studentId: string;
+  activityName: string;
+  category: ActivityCategory;
+  organization?: string;
+  startDate: string; // ISO date string
+  endDate?: string; // ISO date string or empty for ongoing
+  role?: string;
+  awards?: string; // Comma-separated for form input
   description?: string;
   notes?: string;
 }

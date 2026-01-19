@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { api } from "@/trpc/react";
 import { usePdfGenerator } from "@/hooks/use-pdf-generator";
+import type { StudentActivityMetadata, ExternalAchievementMetadata } from "@/types/core/domain-types";
 
 interface TranscriptPreviewProps {
   studentId: string;
@@ -13,6 +14,7 @@ interface TranscriptPreviewProps {
 export function TranscriptPreview({ studentId, format, onClose }: TranscriptPreviewProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [includeAchievements, setIncludeAchievements] = useState(true);
+  const [includeActivities, setIncludeActivities] = useState(true);
 
   // Fetch transcript data
   const { data: transcriptData, isLoading } = api.transcript.getTranscriptData.useQuery({
@@ -38,6 +40,7 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
         format: format as 'standard' | 'detailed' | 'college-prep',
         includeWatermark: false, // TODO: Check subscription status
         includeAchievements,
+        includeActivities,
       });
       
       // Create download link
@@ -92,7 +95,7 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
     );
   }
 
-  const { student, tenant, coursesByYear, gpaByYear, cumulativeGPA, totalCredits, testScores } = transcriptData;
+  const { student, tenant, coursesByYear, gpaByYear, cumulativeGPA, totalCredits, testScores, achievements, activities } = transcriptData;
 
   // Type guard for test scores
   const getTestScoreValue = (scores: unknown, key: string): string | number | undefined => {
@@ -138,7 +141,7 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
           </div>
 
           {/* PDF Options */}
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-col space-y-2">
             <label className="flex items-center">
               <input
                 type="checkbox"
@@ -148,6 +151,17 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
               />
               <span className="ml-2 text-sm text-gray-700">
                 Include External Achievements & Certifications
+              </span>
+            </label>
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={includeActivities}
+                onChange={(e) => setIncludeActivities(e.target.checked)}
+                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+              />
+              <span className="ml-2 text-sm text-gray-700">
+                Include Extracurricular Activities
               </span>
             </label>
           </div>
@@ -309,6 +323,184 @@ export function TranscriptPreview({ studentId, format, onClose }: TranscriptPrev
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* External Achievements */}
+          {includeAchievements && achievements && achievements.length > 0 && (
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-3 border-b border-gray-300">
+                External Achievements & Certifications
+              </h2>
+
+              {Object.entries(
+                achievements.reduce(
+                  (acc, achievement) => {
+                    const category = achievement.category;
+                    acc[category] ??= [];
+                    acc[category].push(achievement);
+                    return acc;
+                  },
+                  {} as Record<string, typeof achievements>
+                )
+              )
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([category, categoryAchievements]) => (
+                  <div key={category} className="mb-4">
+                    <h3 className="text-md font-semibold text-gray-800 mb-2 border-b border-gray-200 pb-1">
+                      {category}
+                    </h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm border-collapse border border-gray-300">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="border border-gray-300 px-3 py-2 text-left">Title</th>
+                            <th className="border border-gray-300 px-3 py-2 text-left">Provider</th>
+                            <th className="border border-gray-300 px-3 py-2 text-center">Date</th>
+                            <th className="border border-gray-300 px-3 py-2 text-center">Score</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {categoryAchievements
+                            .sort(
+                              (a, b) =>
+                                new Date(b.certificateDate).getTime() -
+                                new Date(a.certificateDate).getTime()
+                            )
+                            .map((achievement) => {
+                              const metadata = achievement.metadata as ExternalAchievementMetadata | null;
+                              return (
+                                <tr key={achievement.id} className="border-b border-gray-100">
+                                  <td className="border border-gray-300 px-3 py-2">
+                                    <div className="font-medium text-gray-900">
+                                      {achievement.title}
+                                    </div>
+                                    {metadata?.skills &&
+                                      Array.isArray(metadata.skills) &&
+                                      metadata.skills.length > 0 && (
+                                        <div className="text-xs text-gray-500 mt-1">
+                                          Skills: {metadata.skills.join(", ")}
+                                        </div>
+                                      )}
+                                  </td>
+                                  <td className="border border-gray-300 px-3 py-2 text-gray-900">
+                                    {achievement.provider}
+                                  </td>
+                                  <td className="border border-gray-300 px-3 py-2 text-center text-gray-600">
+                                    {new Date(achievement.certificateDate).toLocaleDateString()}
+                                  </td>
+                                  <td className="border border-gray-300 px-3 py-2 text-center text-gray-600">
+                                    {metadata?.score ? (
+                                      <span className="font-medium">
+                                        {metadata.score}
+                                        {metadata.passingScore && (
+                                          <span className="text-gray-500">
+                                            {" "}
+                                            / {metadata.passingScore}
+                                          </span>
+                                        )}
+                                      </span>
+                                    ) : (
+                                      "—"
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {/* Extracurricular Activities */}
+          {includeActivities && activities && activities.length > 0 && (
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-3 border-b border-gray-300">
+                Extracurricular Activities
+              </h2>
+
+              {Object.entries(
+                activities.reduce(
+                  (acc, activity) => {
+                    const category = activity.category;
+                    acc[category] ??= [];
+                    acc[category].push(activity);
+                    return acc;
+                  },
+                  {} as Record<string, typeof activities>
+                )
+              )
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([category, categoryActivities]) => (
+                  <div key={category} className="mb-4">
+                    <h3 className="text-md font-semibold text-gray-800 mb-2 border-b border-gray-200 pb-1">
+                      {category}
+                    </h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm border-collapse border border-gray-300">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="border border-gray-300 px-3 py-2 text-left">Activity</th>
+                            <th className="border border-gray-300 px-3 py-2 text-left">Organization</th>
+                            <th className="border border-gray-300 px-3 py-2 text-left">Role</th>
+                            <th className="border border-gray-300 px-3 py-2 text-center">Dates</th>
+                            <th className="border border-gray-300 px-3 py-2 text-left">Awards</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {categoryActivities
+                            .sort(
+                              (a, b) =>
+                                new Date(b.startDate).getTime() -
+                                new Date(a.startDate).getTime()
+                            )
+                            .map((activity) => {
+                              const metadata = activity.metadata as StudentActivityMetadata | null;
+                              const formatDateRange = (start: string, end: string | null) => {
+                                const startDate = new Date(start).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  year: "numeric",
+                                });
+                                return end
+                                  ? `${startDate} - ${new Date(end).toLocaleDateString("en-US", {
+                                      month: "short",
+                                      year: "numeric",
+                                    })}`
+                                  : `${startDate} - Present`;
+                              };
+
+                              return (
+                                <tr key={activity.id} className="border-b border-gray-100">
+                                  <td className="border border-gray-300 px-3 py-2">
+                                    <div className="font-medium text-gray-900">
+                                      {activity.activityName}
+                                    </div>
+                                  </td>
+                                  <td className="border border-gray-300 px-3 py-2 text-gray-900">
+                                    {activity.organization ?? "—"}
+                                  </td>
+                                  <td className="border border-gray-300 px-3 py-2 text-gray-900">
+                                    {activity.role ?? "—"}
+                                  </td>
+                                  <td className="border border-gray-300 px-3 py-2 text-center text-gray-600">
+                                    {formatDateRange(activity.startDate, activity.endDate)}
+                                  </td>
+                                  <td className="border border-gray-300 px-3 py-2 text-gray-600">
+                                    {metadata?.awards && metadata.awards.length > 0
+                                      ? metadata.awards.join(", ")
+                                      : "—"}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
             </div>
           )}
 

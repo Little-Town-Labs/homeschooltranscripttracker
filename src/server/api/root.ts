@@ -4,6 +4,7 @@ import { courseRouter } from "@/server/api/routers/course";
 import { gradeRouter } from "@/server/api/routers/grade";
 import { testScoreRouter } from "@/server/api/routers/test-score";
 import { externalAchievementRouter } from "@/server/api/routers/external-achievement";
+import { studentActivityRouter } from "@/server/api/routers/student-activity";
 import { transcriptRouter } from "@/server/api/routers/transcript";
 import { dashboardRouter } from "@/server/api/routers/dashboard";
 import { billingRouter } from "@/server/api/routers/billing";
@@ -23,6 +24,7 @@ export const appRouter = createTRPCRouter({
   grade: gradeRouter,
   testScore: testScoreRouter,
   externalAchievement: externalAchievementRouter,
+  studentActivity: studentActivityRouter,
   transcript: transcriptRouter,
   dashboard: dashboardRouter,
   billing: billingRouter,

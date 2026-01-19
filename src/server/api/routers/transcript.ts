@@ -11,6 +11,7 @@ import {
   grades,
   testScores,
   externalAchievements,
+  studentActivities,
   tenants,
   type Grade
 } from "@/server/db/schema";
@@ -76,6 +77,13 @@ export const transcriptRouter = createTRPCRouter({
         .from(externalAchievements)
         .where(and(eq(externalAchievements.studentId, input.studentId), eq(externalAchievements.tenantId, ctx.tenantId)))
         .orderBy(desc(externalAchievements.certificateDate));
+
+      // Get student activities
+      const studentActivitiesList = await ctx.db
+        .select()
+        .from(studentActivities)
+        .where(and(eq(studentActivities.studentId, input.studentId), eq(studentActivities.tenantId, ctx.tenantId)))
+        .orderBy(desc(studentActivities.startDate));
 
       // Calculate cumulative GPA
       const gpaData = await ctx.db
@@ -154,6 +162,7 @@ export const transcriptRouter = createTRPCRouter({
         totalQualityPoints,
         testScores: bestTestScores.sort((a, b) => a.testType.localeCompare(b.testType)),
         achievements: studentAchievements,
+        activities: studentActivitiesList,
         generatedAt: new Date(),
       };
     }),
@@ -341,6 +350,7 @@ export const transcriptRouter = createTRPCRouter({
       format: z.enum(['standard', 'detailed', 'college-prep']).default('standard'),
       includeWatermark: z.boolean().default(false),
       includeAchievements: z.boolean().default(true),
+      includeActivities: z.boolean().default(true),
     }))
     .mutation(async ({ ctx, input }) => {
       // Get transcript data using the existing query logic
@@ -388,6 +398,13 @@ export const transcriptRouter = createTRPCRouter({
         .from(externalAchievements)
         .where(and(eq(externalAchievements.studentId, input.studentId), eq(externalAchievements.tenantId, ctx.tenantId)))
         .orderBy(desc(externalAchievements.certificateDate)) : [];
+
+      // Get student activities (conditionally)
+      const studentActivitiesList = input.includeActivities ? await ctx.db
+        .select()
+        .from(studentActivities)
+        .where(and(eq(studentActivities.studentId, input.studentId), eq(studentActivities.tenantId, ctx.tenantId)))
+        .orderBy(desc(studentActivities.startDate)) : [];
 
       // Calculate GPA and credits
       const gpaData = await ctx.db
@@ -464,6 +481,7 @@ export const transcriptRouter = createTRPCRouter({
         totalCredits,
         testScores: bestTestScores.sort((a, b) => a.testType.localeCompare(b.testType)),
         achievements: studentAchievements,
+        activities: studentActivitiesList,
       };
 
       // Generate PDF using React PDF (server-side)
@@ -878,6 +896,45 @@ export const transcriptRouter = createTRPCRouter({
                         ),
                         skills.length > 0 && React.createElement(Text, { style: styles.achievementSkills },
                           `Skills: ${skills.join(', ')}`
+                        )
+                      );
+                    })
+                  )
+                )
+              )
+            ),
+
+            // Extracurricular Activities
+            transcriptData.activities.length > 0 && React.createElement(View, { style: styles.achievementsSection },
+              React.createElement(Text, { style: styles.achievementsTitle }, 'Extracurricular Activities'),
+              ...Object.entries(
+                transcriptData.activities.reduce((acc, activity) => {
+                  const category = activity.category;
+                  acc[category] ??= [];
+                  acc[category].push(activity);
+                  return acc;
+                }, {} as Record<string, typeof transcriptData.activities>)
+              ).map(([category, categoryActivities]) =>
+                React.createElement(View, { key: category, style: styles.achievementCategory },
+                  React.createElement(Text, { style: styles.achievementCategoryTitle }, category),
+                  React.createElement(View, { style: styles.achievementTable },
+                    ...categoryActivities.map((activity) => {
+                      const metadata = typeof activity.metadata === 'object' && activity.metadata ? activity.metadata as Record<string, unknown> : {};
+                      const awards = Array.isArray(metadata.awards) ? (metadata.awards as string[]) : [];
+                      const formatDateRange = (start: string, end: string | null) => {
+                        const startDate = new Date(start).toLocaleDateString();
+                        return end ? `${startDate} - ${new Date(end).toLocaleDateString()}` : `${startDate} - Present`;
+                      };
+
+                      return React.createElement(View, { key: activity.id },
+                        React.createElement(View, { style: styles.achievementRow },
+                          React.createElement(Text, { style: styles.achievementTitle }, activity.activityName),
+                          React.createElement(Text, { style: styles.achievementProvider }, activity.organization || ''),
+                          React.createElement(Text, { style: styles.achievementDate }, formatDateRange(activity.startDate, activity.endDate)),
+                          React.createElement(Text, { style: styles.achievementScore }, activity.role || '')
+                        ),
+                        awards.length > 0 && React.createElement(Text, { style: styles.achievementSkills },
+                          `Awards: ${awards.join(', ')}`
                         )
                       );
                     })

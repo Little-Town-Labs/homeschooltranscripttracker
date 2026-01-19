@@ -92,6 +92,16 @@ export const achievementCategoryEnum = pgEnum("achievement_category", [
   "Other",
 ]);
 
+export const activityCategoryEnum = pgEnum("activity_category", [
+  "Sports",
+  "Scouting/Youth Groups",
+  "Community Service",
+  "Academic Clubs",
+  "Arts/Performance",
+  "Leadership",
+  "Other",
+]);
+
 // ============================================================================
 // CORE TENANT & USER TABLES
 // ============================================================================
@@ -345,6 +355,55 @@ export const externalAchievements = createTable("external_achievement", {
   index("achievement_category_idx").on(t.category),
 ]);
 
+/**
+ * Student extracurricular activities
+ * Track sports, clubs, community service, leadership, and other activities
+ */
+export const studentActivities = createTable(
+  "student_activity",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id, { onDelete: "cascade" }),
+
+    // Core activity info
+    activityName: varchar("activity_name", { length: 255 }).notNull(),
+    category: activityCategoryEnum("category").notNull(),
+    organization: varchar("organization", { length: 255 }),
+
+    // Date tracking
+    startDate: date("start_date").notNull(),
+    endDate: date("end_date"), // Null = ongoing
+
+    // Leadership & achievements
+    role: varchar("role", { length: 255 }), // "Team Captain", "Troop Leader"
+
+    // Flexible metadata for awards, hours, etc.
+    metadata: json("metadata"), // { awards: ["Black Belt", "MVP"], hours: 120, competitions: [...] }
+
+    // Additional context
+    description: text("description"),
+    notes: text("notes"),
+
+    // Audit fields
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index("activity_tenant_idx").on(t.tenantId),
+    index("activity_student_idx").on(t.studentId),
+    index("activity_category_idx").on(t.category),
+    index("activity_dates_idx").on(t.startDate, t.endDate),
+  ]
+);
+
 // ============================================================================
 // INVITATION & ACCESS MANAGEMENT
 // ============================================================================
@@ -422,6 +481,7 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
   courses: many(courses),
   testScores: many(testScores),
   externalAchievements: many(externalAchievements),
+  studentActivities: many(studentActivities),
   invitations: many(invitations),
   auditLogs: many(auditLogs),
 }));
@@ -441,6 +501,7 @@ export const studentsRelations = relations(students, ({ one, many }) => ({
   courses: many(courses),
   testScores: many(testScores),
   externalAchievements: many(externalAchievements),
+  studentActivities: many(studentActivities),
   invitations: many(invitations),
 }));
 
@@ -463,6 +524,11 @@ export const testScoresRelations = relations(testScores, ({ one }) => ({
 export const externalAchievementsRelations = relations(externalAchievements, ({ one }) => ({
   tenant: one(tenants, { fields: [externalAchievements.tenantId], references: [tenants.id] }),
   student: one(students, { fields: [externalAchievements.studentId], references: [students.id] }),
+}));
+
+export const studentActivitiesRelations = relations(studentActivities, ({ one }) => ({
+  tenant: one(tenants, { fields: [studentActivities.tenantId], references: [tenants.id] }),
+  student: one(students, { fields: [studentActivities.studentId], references: [students.id] }),
 }));
 
 export const invitationsRelations = relations(invitations, ({ one }) => ({
@@ -522,3 +588,4 @@ export type CourseLevel = typeof courseLevelEnum.enumValues[number];
 export type TestType = typeof testTypeEnum.enumValues[number];
 export type GpaScale = typeof gpaScaleEnum.enumValues[number];
 export type AchievementCategory = typeof achievementCategoryEnum.enumValues[number];
+export type ActivityCategory = typeof activityCategoryEnum.enumValues[number];

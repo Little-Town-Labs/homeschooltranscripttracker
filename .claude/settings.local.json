@@ -19,7 +19,10 @@
       "Bash(awk:*)",
       "Read(///**)",
       "Bash(cut:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "WebFetch(domain:www.coursera.org)",
+      "WebFetch(domain:coursera.org)",
+      "WebSearch"
     ],
     "deny": []
   }
