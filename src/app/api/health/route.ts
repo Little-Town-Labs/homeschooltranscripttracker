@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { sql } from "drizzle-orm";
 
+// Force dynamic rendering to prevent build-time database connection
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     // Test environment variables
