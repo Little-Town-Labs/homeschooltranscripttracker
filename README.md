@@ -40,7 +40,7 @@
 
 ## 🚀 **Live Demo**
 
-🔗 **[View Live Application](https://homeschooltracker.netlify.app)** *(Coming Soon)*
+🔗 **[View Live Application](https://ltlhomeschooltracker.netlify.app)**
 
 ---
 
