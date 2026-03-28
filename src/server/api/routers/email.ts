@@ -4,9 +4,19 @@ import { eq, and } from "drizzle-orm";
 import {
   createTRPCRouter,
   guardianProcedure,
-  publicProcedure,
+  protectedProcedure,
 } from "@/server/api/trpc";
 import { tenants, students } from "@/server/db/schema";
+
+// Escape HTML entities to prevent XSS in email templates
+function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 // Email service configuration
 const EMAIL_SERVICE = process.env.EMAIL_SERVICE ?? "resend"; // resend, sendgrid, postmark
@@ -29,7 +39,7 @@ class EmailService {
       } else if (EMAIL_SERVICE === "sendgrid") {
         return await this.sendWithSendGrid(template);
       } else {
-        console.log("Email service not configured, logging email:", template);
+        // Email service not configured - development mode
         return true; // Development mode
       }
     } catch (error) {
@@ -41,8 +51,8 @@ class EmailService {
   private async sendWithResend(template: EmailTemplate): Promise<boolean> {
     try {
       // Skip actual email sending during build time
-      if (!process.env.RESEND_API_KEY || process.env.NODE_ENV === 'production' && process.env.SKIP_ENV_VALIDATION) {
-        console.log("Skipping email send during build:", template.subject);
+      if (!process.env.RESEND_API_KEY || (process.env.NODE_ENV === 'production' && process.env.SKIP_ENV_VALIDATION)) {
+        // Skipping email send during build
         return true;
       }
 
@@ -64,11 +74,11 @@ class EmailService {
     }
   }
 
-  private async sendWithSendGrid(template: EmailTemplate): Promise<boolean> {
+  private async sendWithSendGrid(_template: EmailTemplate): Promise<boolean> {
     try {
       // Note: @sendgrid/mail would need to be installed if using SendGrid
       // For now, fallback to console logging
-      console.log("SendGrid not configured, would send:", template.subject);
+      // SendGrid not configured
       return true;
     } catch (error) {
       console.error("SendGrid email error:", error);
@@ -110,7 +120,7 @@ class EmailTemplates {
               <h1>Welcome to Homeschool Transcript Tracker!</h1>
             </div>
             <div class="content">
-              <h2>Hi ${userName}!</h2>
+              <h2>Hi ${escapeHtml(userName)}!</h2>
               
               <p>Thank you for joining Homeschool Transcript Tracker! We're excited to help you create professional transcripts for your students.</p>
               
@@ -188,7 +198,7 @@ The Homeschool Transcript Tracker Team`
               <h1>Your Trial is Ending Soon!</h1>
             </div>
             <div class="content">
-              <h2>Hi ${userName}!</h2>
+              <h2>Hi ${escapeHtml(userName)}!</h2>
               
               <div class="warning-box">
                 <h3>⏰ ${daysRemaining} Day${daysRemaining > 1 ? 's' : ''} Remaining</h3>
@@ -257,7 +267,7 @@ The Homeschool Transcript Tracker Team`
               <h1>Subscription Confirmed!</h1>
             </div>
             <div class="content">
-              <h2>Hi ${userName}!</h2>
+              <h2>Hi ${escapeHtml(userName)}!</h2>
               
               <div class="success-box">
                 <h3>🎉 Welcome to the Full Experience!</h3>
@@ -327,7 +337,7 @@ The Homeschool Transcript Tracker Team`
               <h1>Payment Issue</h1>
             </div>
             <div class="content">
-              <h2>Hi ${userName}!</h2>
+              <h2>Hi ${escapeHtml(userName)}!</h2>
               
               <div class="error-box">
                 <h3>💳 Payment Could Not Be Processed</h3>
@@ -394,10 +404,10 @@ The Homeschool Transcript Tracker Team`
               <h1>Transcript Ready!</h1>
             </div>
             <div class="content">
-              <h2>Hi ${userName}!</h2>
+              <h2>Hi ${escapeHtml(userName)}!</h2>
               
               <div class="success-box">
-                <h3>📄 ${studentName}'s Transcript is Ready</h3>
+                <h3>📄 ${escapeHtml(studentName)}'s Transcript is Ready</h3>
                 <p>The professional transcript has been generated and is ready for download.</p>
               </div>
 
@@ -440,7 +450,7 @@ The Homeschool Transcript Tracker Team`
 
 export const emailRouter = createTRPCRouter({
   // Send welcome email (called during user registration)
-  sendWelcomeEmail: publicProcedure
+  sendWelcomeEmail: protectedProcedure
     .input(z.object({
       userEmail: z.string().email(),
       userName: z.string(),

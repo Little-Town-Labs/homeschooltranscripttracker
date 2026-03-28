@@ -1,4 +1,3 @@
-import { postRouter } from "@/server/api/routers/post";
 import { studentRouter } from "@/server/api/routers/student";
 import { courseRouter } from "@/server/api/routers/course";
 import { gradeRouter } from "@/server/api/routers/grade";
@@ -18,7 +17,6 @@ import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
  * All routers added in /api/routers should be manually added here.
  */
 export const appRouter = createTRPCRouter({
-  post: postRouter,
   student: studentRouter,
   course: courseRouter,
   grade: gradeRouter,

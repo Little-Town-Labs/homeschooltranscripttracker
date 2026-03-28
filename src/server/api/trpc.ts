@@ -97,8 +97,10 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
 
   const result = await next();
 
-  const end = Date.now();
-  console.log(`[TRPC] ${path} took ${end - start}ms to execute`);
+  if (t._config.isDev) {
+    const end = Date.now();
+    console.log(`[TRPC] ${path} took ${end - start}ms to execute`);
+  }
 
   return result;
 });
@@ -126,16 +128,8 @@ export const publicProcedure = t.procedure.use(timingMiddleware);
  * Adds tenant context to procedures and enforces multi-tenant data isolation
  */
 const tenantMiddleware = t.middleware(async ({ ctx, next }) => {
-  console.log('[TRPC DEBUG] Tenant middleware - session:', ctx.session ? {
-    userId: ctx.session.user?.id,
-    userEmail: ctx.session.user?.email,
-    tenantId: ctx.session.user?.tenantId,
-    role: ctx.session.user?.role
-  } : 'No session');
-  
   if (!ctx.session?.user?.tenantId) {
-    console.log('[TRPC DEBUG] Missing tenantId in session, throwing FORBIDDEN error');
-    throw new TRPCError({ 
+    throw new TRPCError({
       code: "FORBIDDEN", 
       message: "User must belong to a tenant" 
     });

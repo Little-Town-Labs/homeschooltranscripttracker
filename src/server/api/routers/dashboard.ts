@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { eq, and, desc, count, sql } from "drizzle-orm";
 
 import {
@@ -88,7 +87,6 @@ export const dashboardRouter = createTRPCRouter({
         },
       };
     } catch (err) {
-      console.error("Error in getOverview:", err);
       throw new Error("Failed to fetch dashboard overview");
     }
   }),
@@ -110,18 +108,40 @@ export const dashboardRouter = createTRPCRouter({
         .from(students)
         .where(eq(students.tenantId, ctx.tenantId));
 
-      const progressData = [];
+      // Batch-fetch all courses with grades for the tenant (single query)
+      const allCoursesWithGrades = await ctx.db
+        .select({
+          course: courses,
+          grade: grades,
+        })
+        .from(courses)
+        .leftJoin(grades, eq(courses.id, grades.courseId))
+        .where(eq(courses.tenantId, ctx.tenantId));
 
-      for (const student of allStudents) {
-        // Get course and grade data
-        const coursesWithGrades = await ctx.db
-          .select({
-            course: courses,
-            grade: grades,
-          })
-          .from(courses)
-          .leftJoin(grades, eq(courses.id, grades.courseId))
-          .where(and(eq(courses.studentId, student.id), eq(courses.tenantId, ctx.tenantId)));
+      // Batch-fetch all achievement counts per student (single query)
+      const achievementCounts = await ctx.db
+        .select({
+          studentId: externalAchievements.studentId,
+          count: count(),
+        })
+        .from(externalAchievements)
+        .where(eq(externalAchievements.tenantId, ctx.tenantId))
+        .groupBy(externalAchievements.studentId);
+
+      const achievementsByStudent = achievementCounts.reduce((acc, row) => {
+        acc[row.studentId] = row.count;
+        return acc;
+      }, {} as Record<string, number>);
+
+      // Group courses by student
+      const coursesByStudent = allCoursesWithGrades.reduce((acc, item) => {
+        const arr = acc[item.course.studentId] ??= [];
+        arr.push(item);
+        return acc;
+      }, {} as Record<string, typeof allCoursesWithGrades>);
+
+      return allStudents.map((student) => {
+        const coursesWithGrades = coursesByStudent[student.id] ?? [];
 
         // Calculate metrics
         const totalCourses = coursesWithGrades.length;
@@ -165,13 +185,13 @@ export const dashboardRouter = createTRPCRouter({
           foreignLanguage: { required: 2, earned: subjectCredits["Foreign Language"] ?? 0 },
           fineArts: { required: 1, earned: subjectCredits["Fine Arts"] ?? 0 },
           physicalEducation: { required: 1, earned: subjectCredits["Physical Education"] ?? 0 },
-          electives: { required: 6, earned: Math.max(0, completedCredits - 
-            (subjectCredits.English ?? 0) - 
-            (subjectCredits.Mathematics ?? 0) - 
-            (subjectCredits.Science ?? 0) - 
-            (subjectCredits["Social Studies"] ?? 0) - 
-            (subjectCredits["Foreign Language"] ?? 0) - 
-            (subjectCredits["Fine Arts"] ?? 0) - 
+          electives: { required: 6, earned: Math.max(0, completedCredits -
+            (subjectCredits.English ?? 0) -
+            (subjectCredits.Mathematics ?? 0) -
+            (subjectCredits.Science ?? 0) -
+            (subjectCredits["Social Studies"] ?? 0) -
+            (subjectCredits["Foreign Language"] ?? 0) -
+            (subjectCredits["Fine Arts"] ?? 0) -
             (subjectCredits["Physical Education"] ?? 0)) },
         };
 
@@ -179,18 +199,7 @@ export const dashboardRouter = createTRPCRouter({
         const totalEarned = Object.values(requirements).reduce((sum, req) => sum + req.earned, 0);
         const graduationProgress = totalRequired > 0 ? (totalEarned / totalRequired) * 100 : 0;
 
-        // Get achievement count for this student
-        const studentAchievements = await ctx.db
-          .select({ count: count() })
-          .from(externalAchievements)
-          .where(
-            and(
-              eq(externalAchievements.tenantId, ctx.tenantId),
-              eq(externalAchievements.studentId, student.id)
-            )
-          );
-
-        progressData.push({
+        return {
           student: {
             id: student.id,
             name: `${student.firstName} ${student.lastName}`,
@@ -204,7 +213,7 @@ export const dashboardRouter = createTRPCRouter({
             totalCredits,
             completedCredits,
             completionRate: totalCourses > 0 ? (completedCourses / totalCourses) * 100 : 0,
-            achievements: studentAchievements[0]?.count ?? 0,
+            achievements: achievementsByStudent[student.id] ?? 0,
           },
           graduation: {
             progress: Math.min(100, graduationProgress),
@@ -212,12 +221,9 @@ export const dashboardRouter = createTRPCRouter({
             meetsRequirements: graduationProgress >= 100,
             creditsRemaining: Math.max(0, totalRequired - totalEarned),
           },
-        });
-      }
-
-      return progressData;
+        };
+      });
     } catch (err) {
-      console.error("Error in getStudentProgress:", err);
       throw new Error("Failed to fetch student progress");
     }
   }),
@@ -310,7 +316,6 @@ export const dashboardRouter = createTRPCRouter({
           .sort((a, b) => b.averageGPA - a.averageGPA),
       };
     } catch (err) {
-      console.error("Error in getAcademicTrends:", err);
       throw new Error("Failed to fetch academic trends");
     }
   }),
@@ -341,38 +346,74 @@ export const dashboardRouter = createTRPCRouter({
         .from(students)
         .where(eq(students.tenantId, ctx.tenantId));
 
-      const tasks = [];
+      // Batch-fetch all courses without grades for the tenant (single query)
+      const allCoursesWithoutGrades = await ctx.db
+        .select({
+          id: courses.id,
+          studentId: courses.studentId,
+          courseName: courses.name,
+          academicYear: courses.academicYear,
+        })
+        .from(courses)
+        .leftJoin(grades, eq(courses.id, grades.courseId))
+        .where(
+          and(
+            eq(courses.tenantId, ctx.tenantId),
+            sql`${grades.id} IS NULL`
+          )
+        );
+
+      // Batch-fetch completed course counts per student (single query)
+      const completedCourseCounts = await ctx.db
+        .select({
+          studentId: courses.studentId,
+          count: count(),
+        })
+        .from(courses)
+        .innerJoin(grades, eq(courses.id, grades.courseId))
+        .where(eq(courses.tenantId, ctx.tenantId))
+        .groupBy(courses.studentId);
+
+      const completedByStudent = completedCourseCounts.reduce((acc, row) => {
+        acc[row.studentId] = row.count;
+        return acc;
+      }, {} as Record<string, number>);
+
+      // Group missing-grade courses by student
+      const missingByStudent = allCoursesWithoutGrades.reduce((acc, course) => {
+        const arr = acc[course.studentId] ??= [];
+        arr.push(course);
+        return acc;
+      }, {} as Record<string, typeof allCoursesWithoutGrades>);
+
+      const tasks: Array<{
+        type: string;
+        priority: string;
+        title: string;
+        description: string;
+        studentId: string;
+        studentName: string;
+        courseId: string | null;
+        dueDate: Date | null;
+      }> = [];
 
       for (const student of studentsData) {
-        // Check for missing grades
-        const coursesWithoutGrades = await ctx.db
-          .select({
-            id: courses.id,
-            courseName: courses.name,
-            academicYear: courses.academicYear,
-          })
-          .from(courses)
-          .leftJoin(grades, eq(courses.id, grades.courseId))
-          .where(
-            and(
-              eq(courses.studentId, student.id),
-              eq(courses.tenantId, ctx.tenantId),
-              sql`${grades.id} IS NULL`
-            )
-          );
+        const studentName = `${student.firstName} ${student.lastName}`;
 
-        coursesWithoutGrades.forEach(course => {
+        // Missing grades
+        const missingGradeCourses = missingByStudent[student.id] ?? [];
+        for (const course of missingGradeCourses) {
           tasks.push({
             type: "missing_grade",
             priority: "medium",
             title: `Missing grade for ${course.courseName}`,
-            description: `${student.firstName} ${student.lastName} needs a grade recorded`,
+            description: `${studentName} needs a grade recorded`,
             studentId: student.id,
-            studentName: `${student.firstName} ${student.lastName}`,
+            studentName,
             courseId: course.id,
             dueDate: null,
           });
-        });
+        }
 
         // Check graduation requirements for seniors
         if (student.graduationYear === currentYear + 1) {
@@ -380,29 +421,23 @@ export const dashboardRouter = createTRPCRouter({
             type: "graduation_check",
             priority: "high",
             title: `Graduation requirements check`,
-            description: `Review ${student.firstName} ${student.lastName}'s transcript for graduation readiness`,
+            description: `Review ${studentName}'s transcript for graduation readiness`,
             studentId: student.id,
-            studentName: `${student.firstName} ${student.lastName}`,
+            studentName,
             courseId: null,
             dueDate: new Date(currentYear, 4, 1), // May 1st
           });
         }
 
         // Check for transcript generation
-        const hasCompletedCourses = await ctx.db
-          .select({ count: count() })
-          .from(courses)
-          .innerJoin(grades, eq(courses.id, grades.courseId))
-          .where(and(eq(courses.studentId, student.id), eq(courses.tenantId, ctx.tenantId)));
-
-        if ((hasCompletedCourses[0]?.count ?? 0) >= 10) {
+        if ((completedByStudent[student.id] ?? 0) >= 10) {
           tasks.push({
             type: "transcript_ready",
             priority: "low",
             title: `Transcript ready for generation`,
-            description: `${student.firstName} ${student.lastName} has enough completed courses for transcript`,
+            description: `${studentName} has enough completed courses for transcript`,
             studentId: student.id,
-            studentName: `${student.firstName} ${student.lastName}`,
+            studentName,
             courseId: null,
             dueDate: null,
           });
@@ -424,7 +459,6 @@ export const dashboardRouter = createTRPCRouter({
         })
         .slice(0, 10); // Limit to 10 most important tasks
     } catch (err) {
-      console.error("Error in getUpcomingTasks:", err);
       throw new Error("Failed to fetch upcoming tasks");
     }
   }),

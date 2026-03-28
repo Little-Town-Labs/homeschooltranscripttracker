@@ -11,11 +11,19 @@ export function EnhancedDashboard() {
   const { data: session } = useSession();
   const [selectedView, setSelectedView] = useState<"overview" | "progress" | "trends">("overview");
 
-  // Fetch dashboard data
-  const { data: overview } = api.dashboard.getOverview.useQuery();
-  const { data: studentProgress } = api.dashboard.getStudentProgress.useQuery();
-  const { data: academicTrends } = api.dashboard.getAcademicTrends.useQuery();
-  const { data: upcomingTasks } = api.dashboard.getUpcomingTasks.useQuery();
+  // Fetch dashboard data conditionally based on active tab
+  const { data: overview } = api.dashboard.getOverview.useQuery(undefined, {
+    enabled: selectedView === "overview",
+  });
+  const { data: studentProgress } = api.dashboard.getStudentProgress.useQuery(undefined, {
+    enabled: selectedView === "progress",
+  });
+  const { data: academicTrends } = api.dashboard.getAcademicTrends.useQuery(undefined, {
+    enabled: selectedView === "trends",
+  });
+  const { data: upcomingTasks } = api.dashboard.getUpcomingTasks.useQuery(undefined, {
+    enabled: selectedView === "overview",
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">

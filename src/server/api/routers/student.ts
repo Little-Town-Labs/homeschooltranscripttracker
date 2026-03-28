@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
 
 import {
@@ -125,10 +125,10 @@ export const studentRouter = createTRPCRouter({
   // Get student count for dashboard
   getCount: guardianProcedure.query(async ({ ctx }) => {
     const result = await ctx.db
-      .select({ count: students.id })
+      .select({ count: count() })
       .from(students)
       .where(eq(students.tenantId, ctx.tenantId));
 
-    return result.length;
+    return result[0]?.count ?? 0;
   }),
 });

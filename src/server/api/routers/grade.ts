@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 import {
   createTRPCRouter,
@@ -206,7 +206,7 @@ export const gradeRouter = createTRPCRouter({
       };
     }),
 
-  // Get GPA summary for all students
+  // Get GPA summary for all students (single batched query)
   getGPASummary: guardianProcedure.query(async ({ ctx }) => {
     const allStudents = await ctx.db
       .select({
@@ -218,50 +218,50 @@ export const gradeRouter = createTRPCRouter({
       .from(students)
       .where(eq(students.tenantId, ctx.tenantId));
 
-    const summary = [];
+    // Batch-fetch all grades for the tenant in a single query
+    const allGradeData = await ctx.db
+      .select({
+        studentId: courses.studentId,
+        gpaPoints: grades.gpaPoints,
+        credits: courses.creditHours,
+      })
+      .from(grades)
+      .innerJoin(courses, eq(grades.courseId, courses.id))
+      .where(eq(courses.tenantId, ctx.tenantId));
 
-    for (const student of allStudents) {
-      // Get grades for this student
-      const gradeData = await ctx.db
-        .select({
-          gpaPoints: grades.gpaPoints,
-          credits: courses.creditHours,
-        })
-        .from(grades)
-        .innerJoin(courses, eq(grades.courseId, courses.id))
-        .where(
-          and(
-            eq(courses.tenantId, ctx.tenantId),
-            eq(courses.studentId, student.id)
-          )
-        );
+    // Group grades by student
+    const gradesByStudent = allGradeData.reduce((acc, grade) => {
+      const arr = acc[grade.studentId] ??= [];
+      arr.push(grade);
+      return acc;
+    }, {} as Record<string, typeof allGradeData>);
 
+    return allStudents.map((student) => {
+      const studentGrades = gradesByStudent[student.id] ?? [];
       let gpa = 0;
       let totalCredits = 0;
 
-      if (gradeData.length > 0) {
-        const totalQualityPoints = gradeData.reduce(
-          (sum, grade) => sum + (Number(grade.gpaPoints) * Number(grade.credits)), 
+      if (studentGrades.length > 0) {
+        const totalQualityPoints = studentGrades.reduce(
+          (sum, grade) => sum + (Number(grade.gpaPoints) * Number(grade.credits)),
           0
         );
-        totalCredits = gradeData.reduce(
-          (sum, grade) => sum + Number(grade.credits), 
+        totalCredits = studentGrades.reduce(
+          (sum, grade) => sum + Number(grade.credits),
           0
         );
         gpa = totalCredits > 0 ? totalQualityPoints / totalCredits : 0;
       }
 
-      summary.push({
+      return {
         studentId: student.id,
         studentName: `${student.firstName} ${student.lastName}`,
         gpa: Math.round(gpa * 100) / 100,
         totalCredits,
-        courseCount: gradeData.length,
+        courseCount: studentGrades.length,
         gpaScale: student.gpaScale,
-      });
-    }
-
-    return summary;
+      };
+    });
   }),
 
   // Helper function to convert letter grade to points based on scale

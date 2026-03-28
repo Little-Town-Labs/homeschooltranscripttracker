@@ -19,7 +19,7 @@ try {
       apiVersion: "2025-05-28.basil",
     });
   } else {
-    console.log("Stripe not initialized - missing STRIPE_SECRET_KEY");
+    // Stripe not initialized - missing STRIPE_SECRET_KEY
     // Create a mock stripe object for build time
     stripe = {} as Stripe;
   }
@@ -404,74 +404,4 @@ export const billingRouter = createTRPCRouter({
     };
   }),
 
-  // Webhook handler for Stripe events (for Next.js API route)
-  // Note: Stripe webhook events have dynamic types - using any is appropriate here
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  processWebhook: guardianProcedure
-    .input(z.object({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      event: z.any(),
-    }))
-    .mutation(async ({ ctx, input }) => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-      const event = input.event;
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      switch (event.type) {
-        case "customer.subscription.created":
-        case "customer.subscription.updated":
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-          const subscription = event.data.object;
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-          const tenantId = subscription.metadata.tenantId;
-          
-          if (tenantId) {
-            await ctx.db
-              .update(tenants)
-              .set({
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-                subscriptionId: subscription.id,
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-                subscriptionStatus: subscription.status,
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                trialEndsAt: subscription.status === "active" ? null : undefined,
-              })
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-              .where(eq(tenants.id, tenantId));
-          }
-          break;
-
-        case "customer.subscription.deleted":
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-          const deletedSubscription = event.data.object;
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-          const deletedTenantId = deletedSubscription.metadata.tenantId;
-          
-          if (deletedTenantId) {
-            await ctx.db
-              .update(tenants)
-              .set({
-                subscriptionId: null,
-                subscriptionStatus: "cancelled",
-              })
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-              .where(eq(tenants.id, deletedTenantId));
-          }
-          break;
-
-        case "invoice.payment_succeeded":
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unused-vars
-          const invoice = event.data.object;
-          // Store invoice record if needed
-          break;
-
-        case "invoice.payment_failed":
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unused-vars
-          const failedInvoice = event.data.object;
-          // Handle failed payment
-          break;
-      }
-
-      return { received: true };
-    }),
 });

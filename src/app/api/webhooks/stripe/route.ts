@@ -13,7 +13,7 @@ if (process.env.STRIPE_SECRET_KEY) {
     apiVersion: "2025-05-28.basil",
   });
 } else {
-  console.log("Stripe webhook handler - missing STRIPE_SECRET_KEY");
+  // Stripe webhook handler - missing STRIPE_SECRET_KEY
   stripe = {} as Stripe;
 }
 
@@ -35,29 +35,45 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Map Stripe subscription statuses to our app's enum values
+    const mapStripeStatus = (status: string): "trial" | "active" | "past_due" | "cancelled" | "suspended" => {
+      const statusMap: Record<string, "trial" | "active" | "past_due" | "cancelled" | "suspended"> = {
+        trialing: "trial",
+        active: "active",
+        past_due: "past_due",
+        canceled: "cancelled",
+        unpaid: "suspended",
+        incomplete: "suspended",
+        incomplete_expired: "cancelled",
+        paused: "suspended",
+      };
+      return statusMap[status] ?? "suspended";
+    };
+
     switch (event.type) {
       case "customer.subscription.created":
-      case "customer.subscription.updated":
+      case "customer.subscription.updated": {
         const subscription = event.data.object;
         const tenantId = subscription.metadata.tenantId;
-        
+
         if (tenantId) {
           await db
             .update(tenants)
             .set({
               subscriptionId: subscription.id,
-              subscriptionStatus: subscription.status as "trial" | "active" | "past_due" | "cancelled" | "suspended",
+              subscriptionStatus: mapStripeStatus(subscription.status),
               // Clear trial if subscription becomes active
               trialEndsAt: subscription.status === "active" ? null : undefined,
             })
             .where(eq(tenants.id, tenantId));
         }
         break;
+      }
 
-      case "customer.subscription.deleted":
+      case "customer.subscription.deleted": {
         const deletedSubscription = event.data.object;
         const deletedTenantId = deletedSubscription.metadata.tenantId;
-        
+
         if (deletedTenantId) {
           await db
             .update(tenants)
@@ -68,27 +84,16 @@ export async function POST(req: NextRequest) {
             .where(eq(tenants.id, deletedTenantId));
         }
         break;
+      }
 
       case "invoice.payment_succeeded":
-        const successfulInvoice = event.data.object;
-        // Could store invoice records here if needed
-        console.log(`Payment succeeded for invoice: ${successfulInvoice.id}`);
-        break;
-
       case "invoice.payment_failed":
-        const failedInvoice = event.data.object;
-        // Could handle failed payments here (e.g., send notification emails)
-        console.log(`Payment failed for invoice: ${failedInvoice.id}`);
-        break;
-
       case "customer.subscription.trial_will_end":
-        const trialEndingSubscription = event.data.object;
-        // Could send trial ending notification here
-        console.log(`Trial ending soon for subscription: ${trialEndingSubscription.id}`);
+        // These events are acknowledged but not yet handled
         break;
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        // Unhandled event type - no action needed
     }
 
     return NextResponse.json({ received: true });

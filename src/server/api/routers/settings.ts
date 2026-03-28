@@ -1,9 +1,10 @@
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 import {
   createTRPCRouter,
   guardianProcedure,
+  primaryGuardianProcedure,
 } from "@/server/api/trpc";
 import { tenants, users } from "@/server/db/schema";
 
@@ -32,8 +33,8 @@ export const settingsRouter = createTRPCRouter({
     };
   }),
 
-  // Update tenant settings
-  updateTenantSettings: guardianProcedure
+  // Update tenant settings (primary guardian only)
+  updateTenantSettings: primaryGuardianProcedure
     .input(
       z.object({
         name: z.string().min(1).optional(),
@@ -81,7 +82,7 @@ export const settingsRouter = createTRPCRouter({
   }),
 
   // Update user role (primary guardian only)
-  updateUserRole: guardianProcedure
+  updateUserRole: primaryGuardianProcedure
     .input(
       z.object({
         userId: z.string(),
@@ -89,41 +90,23 @@ export const settingsRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // Only allow if current user is primary guardian
-      const currentUser = await ctx.db
-        .select()
-        .from(users)
-        .where(eq(users.id, ctx.session.user.id))
-        .limit(1);
-
-      if (currentUser[0]?.role !== "primary_guardian") {
-        throw new Error("Only primary guardian can update roles");
-      }
-
       const [updatedUser] = await ctx.db
         .update(users)
         .set({ role: input.role })
-        .where(eq(users.id, input.userId))
+        .where(and(eq(users.id, input.userId), eq(users.tenantId, ctx.tenantId)))
         .returning();
+
+      if (!updatedUser) {
+        throw new Error("User not found in this tenant");
+      }
 
       return updatedUser;
     }),
 
   // Deactivate user (primary guardian only)
-  deactivateUser: guardianProcedure
+  deactivateUser: primaryGuardianProcedure
     .input(z.object({ userId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // Only allow if current user is primary guardian
-      const currentUser = await ctx.db
-        .select()
-        .from(users)
-        .where(eq(users.id, ctx.session.user.id))
-        .limit(1);
-
-      if (currentUser[0]?.role !== "primary_guardian") {
-        throw new Error("Only primary guardian can deactivate users");
-      }
-
       // Don't allow deactivating yourself
       if (input.userId === ctx.session.user.id) {
         throw new Error("Cannot deactivate your own account");
@@ -132,8 +115,12 @@ export const settingsRouter = createTRPCRouter({
       const [updatedUser] = await ctx.db
         .update(users)
         .set({ isActive: false })
-        .where(eq(users.id, input.userId))
+        .where(and(eq(users.id, input.userId), eq(users.tenantId, ctx.tenantId)))
         .returning();
+
+      if (!updatedUser) {
+        throw new Error("User not found in this tenant");
+      }
 
       return updatedUser;
     }),

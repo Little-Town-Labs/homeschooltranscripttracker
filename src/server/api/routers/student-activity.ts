@@ -82,7 +82,7 @@ export const studentActivityRouter = createTRPCRouter({
           category: input.category,
           organization: input.organization ?? null,
           startDate: input.startDate,
-          endDate: input.endDate || null,
+          endDate: input.endDate ?? null,
           role: input.role ?? null,
           metadata: input.metadata ?? null,
           description: input.description ?? null,

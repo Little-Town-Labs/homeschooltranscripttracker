@@ -251,8 +251,15 @@ export const transcriptRouter = createTRPCRouter({
   validateTranscriptGeneration: guardianProcedure
     .input(z.object({ studentId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      // Check if user has active subscription (placeholder for now)
-      const hasActiveSubscription = true; // TODO: Implement subscription check
+      // Check if user has active subscription
+      const tenantData = await ctx.db
+        .select({ subscriptionStatus: tenants.subscriptionStatus, trialEndsAt: tenants.trialEndsAt })
+        .from(tenants)
+        .where(eq(tenants.id, ctx.tenantId))
+        .limit(1);
+      const tenant = tenantData[0];
+      const isInTrial = tenant?.trialEndsAt ? new Date() < tenant.trialEndsAt : false;
+      const hasActiveSubscription = tenant?.subscriptionStatus === "active" || isInTrial;
 
       // Get student courses count
       const coursesCount = await ctx.db
@@ -929,9 +936,9 @@ export const transcriptRouter = createTRPCRouter({
                       return React.createElement(View, { key: activity.id },
                         React.createElement(View, { style: styles.achievementRow },
                           React.createElement(Text, { style: styles.achievementTitle }, activity.activityName),
-                          React.createElement(Text, { style: styles.achievementProvider }, activity.organization || ''),
+                          React.createElement(Text, { style: styles.achievementProvider }, activity.organization ?? ''),
                           React.createElement(Text, { style: styles.achievementDate }, formatDateRange(activity.startDate, activity.endDate)),
-                          React.createElement(Text, { style: styles.achievementScore }, activity.role || '')
+                          React.createElement(Text, { style: styles.achievementScore }, activity.role ?? '')
                         ),
                         awards.length > 0 && React.createElement(Text, { style: styles.achievementSkills },
                           `Awards: ${awards.join(', ')}`

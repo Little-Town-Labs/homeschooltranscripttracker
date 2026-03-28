@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
 
 import {
   createTRPCRouter,
@@ -60,13 +60,6 @@ export const courseRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Debug logging to see exactly what's happening
-      console.log("=== COURSE CREATE DEBUG ===");
-      console.log("Raw input:", input);
-      console.log("courseName value:", input.courseName);
-      console.log("courseName type:", typeof input.courseName);
-      console.log("courseName length:", input.courseName?.length);
-      
       // Validate that courseName is not empty
       if (!input.courseName || input.courseName.trim() === '') {
         throw new Error("Course name cannot be empty");
@@ -82,9 +75,6 @@ export const courseRouter = createTRPCRouter({
         description: input.description ?? null,
         tenantId: ctx.tenantId,
       };
-      
-      console.log("Insert data:", insertData);
-      console.log("=== END DEBUG ===");
       
       const [newCourse] = await ctx.db
         .insert(courses)
@@ -151,11 +141,11 @@ export const courseRouter = createTRPCRouter({
   // Get course count for dashboard
   getCount: guardianProcedure.query(async ({ ctx }) => {
     const result = await ctx.db
-      .select({ count: courses.id })
+      .select({ count: count() })
       .from(courses)
       .where(eq(courses.tenantId, ctx.tenantId));
 
-    return result.length;
+    return result[0]?.count ?? 0;
   }),
 
   // Get courses grouped by academic year

@@ -65,7 +65,7 @@ export const authConfig = {
     async signIn({ user, isNewUser }) {
       if (isNewUser && user.email) {
         // New user - create tenant and update user with tenant and role
-        const familyName = user.name?.split(' ').slice(-1)[0] + " Family" || "Family";
+        const familyName = user.name ? `${user.name.split(' ').pop()} Family` : "Family";
         const trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
         
         const [newTenant] = await db.insert(tenants).values({
@@ -86,7 +86,7 @@ export const authConfig = {
         try {
           // Skip email sending during build time
           if (!process.env.RESEND_API_KEY || (process.env.NODE_ENV === 'production' && process.env.SKIP_ENV_VALIDATION)) {
-            console.log("Skipping welcome email during build");
+            // Skipping welcome email during build
             return;
           }
 
@@ -103,7 +103,7 @@ export const authConfig = {
                   <h1>Welcome to Homeschool Transcript Tracker!</h1>
                 </div>
                 <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px;">
-                  <h2>Hi ${user.name}!</h2>
+                  <h2>Hi ${(user.name ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}!</h2>
                   
                   <p>Thank you for joining Homeschool Transcript Tracker! We're excited to help you create professional transcripts for your students.</p>
                   
@@ -141,20 +141,11 @@ export const authConfig = {
   },
   callbacks: {
     session: async ({ session, user }) => {
-      console.log('[AUTH DEBUG] Session callback called with user ID:', user.id);
-      
       // Fetch fresh user data to get tenant info
       const dbUser = await db.select().from(users).where(eq(users.id, user.id)).limit(1);
       const userData = dbUser[0];
-      
-      console.log('[AUTH DEBUG] Database user data:', userData ? {
-        id: userData.id,
-        email: userData.email,
-        tenantId: userData.tenantId,
-        role: userData.role
-      } : 'User not found');
-      
-      const sessionData = {
+
+      return {
         ...session,
         user: {
           ...session.user,
@@ -163,10 +154,6 @@ export const authConfig = {
           role: userData?.role ?? null,
         },
       };
-      
-      console.log('[AUTH DEBUG] Returning session with tenantId:', sessionData.user.tenantId, 'role:', sessionData.user.role);
-      
-      return sessionData;
     },
   },
 } satisfies NextAuthConfig;
