@@ -119,7 +119,7 @@ export function LandingPage() {
           
           <div className="bg-white rounded-lg shadow-lg p-8 max-w-md mx-auto">
             <h3 className="text-2xl font-bold text-gray-900 mb-4">Per Student</h3>
-            <div className="text-4xl font-bold text-indigo-600 mb-2">$8<span className="text-lg text-gray-500">/month</span></div>
+            <div className="text-4xl font-bold text-indigo-600 mb-2">$5<span className="text-lg text-gray-500">/month</span></div>
             <p className="text-gray-600 mb-6">Family discounts available</p>
             
             <ul className="text-left space-y-3 mb-8">

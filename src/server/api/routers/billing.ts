@@ -62,7 +62,7 @@ export const billingRouter = createTRPCRouter({
     }
 
     // Calculate pricing
-    const basePrice = 8.00; // $8 per student per month
+    const basePrice = 5.00; // $5 per student per month
     let discount = 0;
     let discountPercentage = 0;
 
@@ -176,7 +176,7 @@ export const billingRouter = createTRPCRouter({
       }
 
       // Calculate pricing
-      const basePrice = 8.00;
+      const basePrice = 5.00;
       let discountPercentage = 0;
       
       if (input.studentCount >= 4) {
@@ -287,7 +287,7 @@ export const billingRouter = createTRPCRouter({
           }
 
           // Calculate new pricing
-          const basePrice = 8.00;
+          const basePrice = 5.00;
           let discountPercentage = 0;
           
           if (input.studentCount >= 4) {
