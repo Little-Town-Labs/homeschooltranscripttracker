@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 
-import { api } from "@/trpc/react";
-import type { UserRole } from "@/types/core/domain-types";
+import { api, type RouterInputs, type RouterOutputs } from "@/trpc/react";
+
+type FamilyMember = RouterOutputs["settings"]["getFamilyMembers"][number];
+type AssignableRole = RouterInputs["settings"]["updateUserRole"]["role"];
 
 export function SettingsPage() {
   const { data: session } = useSession();
@@ -20,12 +22,9 @@ export function SettingsPage() {
     phone: "",
   });
 
-  // Fetch tenant settings and family members
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-  const { data: tenantSettings, refetch: refetchSettings } = (api as any).settings.getTenantSettings.useQuery();
+  const { data: tenantSettings, refetch: refetchSettings } = api.settings.getTenantSettings.useQuery();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-  const { data: familyMembers, refetch: refetchMembers } = (api as any).settings.getFamilyMembers.useQuery();
+  const { data: familyMembers, refetch: refetchMembers } = api.settings.getFamilyMembers.useQuery();
 
   // Update form data when tenant settings are loaded
   useEffect(() => {
@@ -43,41 +42,35 @@ export function SettingsPage() {
   }, [tenantSettings]);
 
   // Mutations
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-  const updateSettings = (api as any).settings.updateTenantSettings.useMutation({
+  const updateSettings = api.settings.updateTenantSettings.useMutation({
     onSuccess: () => {
       void refetchSettings();
       setIsEditing(false);
       alert("Settings updated successfully!");
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onError: (error: any) => {
+    onError: (error) => {
       console.error("Failed to update settings:", error);
       alert("Failed to update settings. Please try again.");
     },
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-  const updateUserRole = (api as any).settings.updateUserRole.useMutation({
+  const updateUserRole = api.settings.updateUserRole.useMutation({
     onSuccess: () => {
       void refetchMembers();
       alert("User role updated successfully!");
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onError: (error: any) => {
+    onError: (error) => {
       console.error("Failed to update user role:", error);
       alert(error.message ?? "Failed to update user role. Please try again.");
     },
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-  const deactivateUser = (api as any).settings.deactivateUser.useMutation({
+  const deactivateUser = api.settings.deactivateUser.useMutation({
     onSuccess: () => {
       void refetchMembers();
       alert("User deactivated successfully!");
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onError: (error: any) => {
+    onError: (error) => {
       console.error("Failed to deactivate user:", error);
       alert(error.message ?? "Failed to deactivate user. Please try again.");
     },
@@ -103,8 +96,8 @@ export function SettingsPage() {
     setIsEditing(false);
   };
 
-  const handleRoleChange = async (userId: string, newRole: UserRole) => {
-    if (window.confirm(`Are you sure you want to change this user's role to ${newRole}?`)) {
+  const handleRoleChange = async (userId: string, newRole: AssignableRole) => {
+    if (window.confirm(`Are you sure you want to change this user\u0027s role to ${newRole}?`)) {
       await updateUserRole.mutateAsync({ userId, role: newRole });
     }
   };
@@ -360,7 +353,7 @@ export function SettingsPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Family Members</h2>
             <p className="text-sm text-gray-600 mb-4">
-              Manage users who have access to your family's academic records.
+              Manage users who have access to your family&apos;s academic records.
             </p>
 
             <div className="overflow-x-auto">
@@ -387,8 +380,7 @@ export function SettingsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {familyMembers?.map((member: any) => (
+                  {familyMembers.map((member: FamilyMember) => (
                     <tr key={member.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -413,8 +405,8 @@ export function SettingsPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         {isPrimaryGuardian && member.id !== session?.user?.id ? (
                           <select
-                            value={member.role}
-                            onChange={(e) => handleRoleChange(member.id, e.target.value as UserRole)}
+                            value={member.role ?? ""}
+                            onChange={(e) => handleRoleChange(member.id, e.target.value as AssignableRole)}
                             className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           >
                             <option value="primary_guardian">Primary Guardian</option>
@@ -483,11 +475,11 @@ export function SettingsPage() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Member Since</p>
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 <p className="text-gray-900 font-medium">
-                  {familyMembers?.find((m: any) => m.id === session?.user?.id)?.createdAt
-                    ? new Date(familyMembers.find((m: any) => m.id === session?.user?.id)!.createdAt).toLocaleDateString()
-                    : "Unknown"}
+                  {(() => {
+                    const createdAt = familyMembers.find((m: FamilyMember) => m.id === session?.user?.id)?.createdAt;
+                    return createdAt ? new Date(createdAt).toLocaleDateString() : "Unknown";
+                  })()}
                 </p>
               </div>
             </div>
